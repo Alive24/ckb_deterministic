@@ -1,0 +1,22 @@
+recipe-group: [deterministic-contracts]
+recipe-name: openVault
+is-admin-recipe: false
+intent-fields:
+    -   name: amount
+        type: u128
+        description: The amount of stablecoin to mint.
+        required: true
+        default: 0
+        constraints:
+            - range: [0, 100]
+input:
+    pool:
+    udt:
+output:
+    pool:
+    vault:
+    staked-udt:
+    stablecoin:
+dep-cells:
+    protocol:
+    oracle:

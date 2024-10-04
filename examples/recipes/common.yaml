@@ -1,0 +1,41 @@
+project-name: prototype
+protocol-cell:
+    data:
+public-cells:
+    pool-cell:
+        data: 
+            symbol: 
+                type: String
+user-cells:
+    vault-cell:
+        overridable: true
+        data:
+            symbol:
+    stake-udt-cell:
+        overridable: true
+        fungible: true
+        data: u128
+    stablecoin-cell:
+        fungible: true
+        data: u128
+external-cells:
+    oracle-cell:
+        type:
+            code:
+            args:
+        data: 
+            symbol: 
+                type: String
+            price:
+                type: u128
+    udt-cell:
+        fungible: true
+        type:
+            code:
+            args:
+            data: u128
+
+# 1. If type is not specified, it is assumed to be using the project type.
+# 2. Public cells's lock script is `project-public-lock`, which would check the Type ID of the admin cell.
+# 3. Intent Cells' and User Cells' lock script is `project-user-lock`, which would check the proxied authentication. If overridable is true, it is unlockable if the recipe can be properly verified.
+# 4. By fungible, it means there might be multiple cells of the same type that can be merged together, and there could be change cells in the output.
