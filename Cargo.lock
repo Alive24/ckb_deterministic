@@ -97,9 +97,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.1.24"
+version = "1.1.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "812acba72f0a070b003d3697490d2b55b837230ae7c6c6497f05cc2ddbb8d938"
+checksum = "2e80e3b6a3ab07840e1cae9b0666a63970dc28e8ed5ffbcdacbfc760c281bfc1"
 dependencies = [
  "shlex",
 ]
@@ -548,6 +548,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ckb_deterministic"
+version = "0.1.0"
+dependencies = [
+ "ckb-std",
+ "ckb-testtool",
+ "serde_json",
+]
+
+[[package]]
 name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -597,12 +606,27 @@ dependencies = [
 ]
 
 [[package]]
-name = "deterministic-recipe-based-contract"
+name = "deterministic_cdp"
 version = "0.1.0"
 dependencies = [
  "ckb-std",
- "ckb-testtool",
- "serde_json",
+ "ckb_deterministic",
+ "deterministic_common",
+]
+
+[[package]]
+name = "deterministic_common"
+version = "0.1.0"
+dependencies = [
+ "ckb-std",
+ "ckb_deterministic",
+]
+
+[[package]]
+name = "deterministic_project_type"
+version = "0.1.0"
+dependencies = [
+ "ckb-std",
 ]
 
 [[package]]
@@ -860,12 +884,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.20.1"
+version = "1.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82881c4be219ab5faaf2ad5e5e5ecdff8c66bd7402ca3160975c93b24961afd1"
-dependencies = [
- "portable-atomic",
-]
+checksum = "1261fe7e33c73b354eab43b1273a57c8f967d0391e80353e51f764ac02cf6775"
 
 [[package]]
 name = "parking_lot"
@@ -939,12 +960,6 @@ name = "plain"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
-
-[[package]]
-name = "portable-atomic"
-version = "1.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc9c68a3f6da06753e9335d63e27f6b9754dd1920d941135b7ea8224f141adb2"
 
 [[package]]
 name = "ppv-lite86"
@@ -1236,6 +1251,14 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "tests"
+version = "0.1.0"
+dependencies = [
+ "ckb-testtool",
+ "serde_json",
 ]
 
 [[package]]

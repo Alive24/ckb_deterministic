@@ -4,10 +4,10 @@
 
 ### Conventions over Configurations
 
-- Deterministic: Transactions with intent
-- Recipe-based Validation: Abstract on the level of recipes
+- Deterministic: With inputs including intent, cell deps, and the same script, the output should be the same
 - One Source of Code: for both verification and transaction assembly on all ends (frontend, backend, and contracts)
-- Role-based Authentication: Protocol, User, Public, and External
+- Recipe-based Validation: Strictly validate transactions based on recipes
+- Role-based Layered Cells with Authentications: Protocol, User, Public, and External
 
 #### One Source of Code
 
@@ -22,12 +22,33 @@
 - Deterministic Calculation: CellInput -> CellOutput + OutputData
 - (TBD) Verification on Data Hash
 
-#### Role-based Cell Contracts and Verification
+#### Role-based Layered Cells with Authentications
+
+##### Interconnected Authentications
+
+- Protocol Cells:
+    - Unique Type ID
+    - Global Configs
+- User Cells:
+    - Project Type connected to Recipe
+    - Project User Lock which is Proxied and Overridable
+    - User Data
+- Public Cells:
+    - Unique Type ID
+    - Project Type connected to Recipe
+    - Project Public Lock connected to Protocol
+    - Public Data
+- External Cells:
+    - External Data
+    - Authenticated by Protocol
+
+##### Simplified Scripts Structure
 
 - Project Type
-    - Type ID Authentication for protocol cells
+    - Type ID Authentication on protocol cells
     - Args Flag for Different Cells
-    - Recipe-based validation
+    - Recipe-based validation and calculation
+    - Deterministic verification
 - Project User Lock
     - Proxied User Authentication on Intent
     - Recipe-based overriding
@@ -41,3 +62,4 @@
     - Better hinting and validation
     - Easier code scaffolding
 2. Spawn-based invocable recipe validations
+

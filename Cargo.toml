@@ -1,9 +1,16 @@
-[package]
-name = "deterministic-recipe-based-contract"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+resolver = "2"
 
-[dependencies]
-ckb-testtool = "0.10.2"
-serde_json = "1.0"
-ckb-std = "0.15.1"
+members = [
+    "ckb_deterministic",
+    "tests",
+    "example_libs/deterministic_common",
+    "example_libs/deterministic_cdp",
+    "example_contracts/deterministic_project_type",
+]
+
+
+[profile.release]
+overflow-checks = true
+strip = true
+codegen-units = 1
