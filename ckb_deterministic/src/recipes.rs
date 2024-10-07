@@ -6,6 +6,7 @@ pub struct RecipeDefinition {
     pub input_definition: Vec<RecipeCellDefinition>,
     pub output_definition: Vec<RecipeCellDefinition>,
     pub dep_definition: Vec<RecipeCellDefinition>,
+    pub recipe_configs: Vec<RecipeConfig>,
 }
 
 pub struct RecipeCellDefinition {
@@ -13,24 +14,6 @@ pub struct RecipeCellDefinition {
     pub cell_type: RecipeCellType,
     pub cell_description: Option<String>,
     pub cell_configs: Vec<RecipeCellConfig>,
-    pub _type: Option<Script>,
-    pub lock: Option<Script>,
-    pub data_type: CellDataTypes
-}
-
-pub struct DeterministicRecipe {
-    recipe_definition: RecipeDefinition,
-    input_cells: Vec<RecipeCell>,
-    dep_cells: Vec<RecipeCell>,
-}
-
-pub struct RecipeCell {
-    cell_definition: RecipeCellDefinition,
-    cell_source: Source,
-    cell_index: u8,
-    cell_lock: Script,
-    cell_type: Option<Script>,
-    cell_data: Vec<u8>
 }
 
 pub enum RecipeCellType {
@@ -43,6 +26,13 @@ pub enum RecipeCellType {
 pub enum RecipeCellConfig {
     Fungible(bool),
     Overridable(bool),
-    Count((Source, u8)),
-    CountDelta(i8),
+    ExternalTypeHash(Vec<u8>),
+    ExternalTypeCodeHash(Vec<u8>),
+    ExternalLockHash(Vec<u8>),
+    ExternalLockCodeHash(Vec<u8>),
+}
+
+pub enum RecipeConfig {
+    Count((RecipeCellDefinition, Source, u8)),
+    CountDelta(RecipeCellDefinition, i8),
 }

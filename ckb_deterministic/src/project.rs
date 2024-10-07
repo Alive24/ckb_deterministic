@@ -5,8 +5,12 @@ use crate::recipes::{RecipeCell, RecipeDefinition};
 
 pub trait Deterministic {
     const RECIPES_DEFINITIONS: Vec<RecipeDefinition>;
-    pub fn parse_transaction(&self) -> Result<(Recipe, Vec<RecipeCell>), Error>;
-    pub fn get_outputs(&self) -> Vec<CellOutput>;
+    pub fn parse_transaction(&self) -> Result<(Recipe, Vec<RecipeCell>), Error> {
+        implement!();
+    }
+    pub fn get_outputs(&self) -> Vec<CellOutput> {
+        implement!();
+    }
     pub fn verify(&self) -> i8 {
         implement!();
     }

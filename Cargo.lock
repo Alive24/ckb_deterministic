@@ -611,22 +611,15 @@ version = "0.1.0"
 dependencies = [
  "ckb-std",
  "ckb_deterministic",
- "deterministic_common",
 ]
 
 [[package]]
-name = "deterministic_common"
+name = "deterministic_cdp_project_type"
 version = "0.1.0"
 dependencies = [
  "ckb-std",
  "ckb_deterministic",
-]
-
-[[package]]
-name = "deterministic_project_type"
-version = "0.1.0"
-dependencies = [
- "ckb-std",
+ "deterministic_cdp",
 ]
 
 [[package]]

@@ -1,7 +1,0 @@
-[package]
-name = "deterministic_project_type"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-ckb-std = "0.15.1"

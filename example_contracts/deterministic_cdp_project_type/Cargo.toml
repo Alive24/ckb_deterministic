@@ -1,8 +1,9 @@
 [package]
-name = "deterministic_common"
+name = "deterministic_cdp_project_type"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 ckb-std = "0.15.1"
+deterministic_cdp = { path = "../../example_libs/deterministic_cdp" }
 ckb_deterministic = { path = "../../ckb_deterministic" }

@@ -4,9 +4,8 @@ resolver = "2"
 members = [
     "ckb_deterministic",
     "tests",
-    "example_libs/deterministic_common",
     "example_libs/deterministic_cdp",
-    "example_contracts/deterministic_project_type",
+    "example_contracts/deterministic_cdp_project_type",
 ]
 
 
