@@ -4,16 +4,16 @@ use proc_macro::TokenStream;
 use crate::recipes::{RecipeCell, RecipeDefinition};
 
 pub trait Deterministic {
-    const RECIPES_DEFINITIONS: Vec<RecipeDefinition>;
-    pub fn parse_transaction(&self) -> Result<(Recipe, Vec<RecipeCell>), Error> {
-        implement!();
+    const RECIPES_DEFINITIONS: &'static [RecipeDefinition];
+    fn parse_transaction(&self) -> Result<(Recipe, Vec<RecipeCell>), Error> {
+        todo!();
     }
-    pub fn get_outputs(&self) -> Vec<CellOutput> {
-        implement!();
+    fn get_outputs(&self) -> Vec<CellOutput> {
+        todo!();
     }
-    pub fn verify(&self) -> i8 {
-        implement!();
+    fn verify(&self) -> i8 {
+        todo!();
     }
-    pub fn get_outputs_data(&self) -> Vec<Vec<u8>>;
+    fn get_outputs_data(&self) -> Vec<Vec<u8>>;
 }
 

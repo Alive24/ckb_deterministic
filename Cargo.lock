@@ -553,7 +553,8 @@ version = "0.1.0"
 dependencies = [
  "ckb-std",
  "ckb-testtool",
- "serde_json",
+ "serde",
+ "serde_molecule",
 ]
 
 [[package]]
@@ -1203,6 +1204,15 @@ dependencies = [
  "itoa",
  "memchr",
  "ryu",
+ "serde",
+]
+
+[[package]]
+name = "serde_molecule"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "461a0e149c50dd863c298c2e2f769c84fd8ccb1c06fdcdda5a53451f883f86b9"
+dependencies = [
  "serde",
 ]
 

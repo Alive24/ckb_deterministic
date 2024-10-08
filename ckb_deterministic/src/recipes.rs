@@ -1,22 +1,24 @@
 use ckb_std::ckb_constants::Source;
 
 pub struct RecipeDefinition {
-    pub recipe_name: String,
-    pub description: String,
-    pub input_definition: Vec<RecipeCellDefinition>,
-    pub output_definition: Vec<RecipeCellDefinition>,
-    pub dep_definition: Vec<RecipeCellDefinition>,
-    pub recipe_configs: Vec<RecipeConfig>,
+    pub recipe_name: &'static str,
+    pub description: &'static str,
+    pub intent_definition: RecipeCellDefinition,
+    pub input_definition: &'static [RecipeCellDefinition],
+    pub output_definition: &'static [RecipeCellDefinition],
+    pub dep_definition: &'static [RecipeCellDefinition],
+    pub recipe_configs: &'static [RecipeConfig],
 }
 
 pub struct RecipeCellDefinition {
-    pub cell_name: String,
+    pub cell_name: &'static str,
     pub cell_type: RecipeCellType,
-    pub cell_description: Option<String>,
-    pub cell_configs: Vec<RecipeCellConfig>,
+    pub cell_description: &'static str,
+    pub cell_configs: &'static [RecipeCellConfig],
 }
 
 pub enum RecipeCellType {
+    Intent,
     Protocol,
     User,
     Public,
@@ -24,12 +26,13 @@ pub enum RecipeCellType {
 }
 
 pub enum RecipeCellConfig {
+    Preset([RecipeCellConfig]),
     Fungible(bool),
     Overridable(bool),
-    ExternalTypeHash(Vec<u8>),
-    ExternalTypeCodeHash(Vec<u8>),
-    ExternalLockHash(Vec<u8>),
-    ExternalLockCodeHash(Vec<u8>),
+    ExternalTypeHash(Vec<Vec<u8>>),
+    ExternalTypeCodeHash(Vec<Vec<u8>>),
+    ExternalLockHash(Vec<Vec<u8>>),
+    ExternalLockCodeHash(Vec<Vec<u8>>),
 }
 
 pub enum RecipeConfig {
