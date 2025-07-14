@@ -6,7 +6,7 @@ TOP := $(cur_dir)
 # RUSTFLAGS that are likely to be tweaked by developers. For example,
 # while we enable debug logs by default here, some might want to strip them
 # for minimal code size / consumed cycles.
-CUSTOM_RUSTFLAGS := --cfg debug_assertions
+CUSTOM_RUSTFLAGS :=
 # RUSTFLAGS that are less likely to be tweaked by developers. Most likely
 # one would want to keep the default values here.
 FULL_RUSTFLAGS := -C target-feature=+zba,+zbb,+zbc,+zbs,-a $(CUSTOM_RUSTFLAGS)
@@ -17,7 +17,7 @@ CARGO_ARGS :=
 MODE := release
 # Tweak this to change the clang version to use for building C code. By default
 # we use a bash script with somes heuristics to find clang in current system.
-CLANG := $(shell $(TOP)/scripts/find_clang)
+CLANG := $(shell $(TOP)/../../scripts/find_clang)
 AR := $(subst clang,llvm-ar,$(CLANG))
 # When this is set to some value, the generated binaries will be copied over
 BUILD_DIR :=
@@ -25,7 +25,7 @@ BUILD_DIR :=
 # likely match the crate name, which is also the name of the final binary.
 # However if this is not the case, you can tweak this variable. As the name hints,
 # more than one binary is supported here.
-BINARIES := $(notdir $(shell pwd))
+BINARIES := deterministic_cdp_project
 
 ifeq (release,$(MODE))
 	MODE_ARGS := --release
@@ -34,8 +34,7 @@ endif
 default: build test
 
 build:
-	RUSTFLAGS="$(FULL_RUSTFLAGS)" TARGET_CC="$(CLANG)" TARGET_AR="$(AR)" \
-		cargo build --target=riscv64imac-unknown-none-elf $(MODE_ARGS) $(CARGO_ARGS)
+	cargo build --target=riscv64imac-unknown-none-elf $(MODE_ARGS) $(CARGO_ARGS)
 	@set -eu; \
 	if [ "x$(BUILD_DIR)" != "x" ]; then \
 		for binary in $(BINARIES); do \

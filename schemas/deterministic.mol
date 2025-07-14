@@ -1,0 +1,10 @@
+// Generic Transaction Recipe Schema for SSRI
+
+vector Bytes <byte>;
+vector BytesVec <Bytes>;
+
+// Transaction Recipe Schema for SSRI - Generic for all CKB projects
+table TransactionRecipe {
+    method_path: Bytes,           // The method path (e.g., "UDT.transfer", "AMM.swap")
+    arguments: BytesVec,          // Encoded arguments for the method
+}

@@ -1,0 +1,30 @@
+/// Errors for the ckb_deterministic library
+#[derive(Debug, Clone, PartialEq)]
+pub enum Error {
+    /// Cell data parsing or validation error
+    DataError,
+    /// Cell classification error - unidentified cells found in strict mode
+    UnidentifiedCells,
+    /// Recipe parsing error
+    RecipeError,
+    /// General CKB system error
+    SystemError(i8),
+}
+
+impl From<ckb_std::error::SysError> for Error {
+    fn from(err: ckb_std::error::SysError) -> Self {
+        // Convert SysError to its i8 representation
+        Error::SystemError(match err {
+            ckb_std::error::SysError::IndexOutOfBound => -1,
+            ckb_std::error::SysError::ItemMissing => -2,
+            ckb_std::error::SysError::LengthNotEnough(_) => -3,
+            ckb_std::error::SysError::Encoding => -4,
+            ckb_std::error::SysError::WaitFailure => -5,
+            ckb_std::error::SysError::InvalidFd => -6,
+            ckb_std::error::SysError::OtherEndClosed => -7,
+            ckb_std::error::SysError::MaxVmsSpawned => -8,
+            ckb_std::error::SysError::MaxFdsCreated => -9,
+            ckb_std::error::SysError::Unknown(_) => -99,
+        })
+    }
+}

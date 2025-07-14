@@ -1,4 +1,6 @@
 use ckb_std::ckb_constants::Source;
+extern crate alloc;
+use alloc::vec::Vec;
 
 pub struct RecipeDefinition {
     pub recipe_name: &'static str,
@@ -10,6 +12,7 @@ pub struct RecipeDefinition {
     pub recipe_configs: &'static [RecipeConfig],
 }
 
+#[derive(Clone)]
 pub struct RecipeCellDefinition {
     pub cell_name: &'static str,
     pub cell_type: RecipeCellType,
@@ -17,6 +20,7 @@ pub struct RecipeCellDefinition {
     pub cell_configs: &'static [RecipeCellConfig],
 }
 
+#[derive(Clone)]
 pub enum RecipeCellType {
     Intent,
     Protocol,
@@ -25,8 +29,9 @@ pub enum RecipeCellType {
     External
 }
 
+#[derive(Clone)]
 pub enum RecipeCellConfig {
-    Preset([RecipeCellConfig]),
+    Preset(&'static [RecipeCellConfig]),
     Fungible(bool),
     Overridable(bool),
     ExternalTypeHash(Vec<Vec<u8>>),
@@ -35,6 +40,7 @@ pub enum RecipeCellConfig {
     ExternalLockCodeHash(Vec<Vec<u8>>),
 }
 
+#[derive(Clone)]
 pub enum RecipeConfig {
     Count((RecipeCellDefinition, Source, u8)),
     CountDelta(RecipeCellDefinition, i8),
