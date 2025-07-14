@@ -1,6 +1,7 @@
 use ckb_deterministic::{
     transaction_context::{TransactionContext, create_transaction_context},
     cell_classifier::{CellCollector, CellClassifier},
+    validation::{TransactionValidationRules, ValidationRegistry, CellCountConstraint},
 };
 use crate::{Error, cell_collector::create_cdp_classifier};
 
@@ -18,7 +19,6 @@ pub struct CDPProject {
     open_vault_hash: u64,
     close_vault_hash: u64,
     update_vault_hash: u64,
-    liquidate_vault_hash: u64,
 }
 
 impl CDPProject {
@@ -29,7 +29,6 @@ impl CDPProject {
             open_vault_hash: cdp_open_vault_hash(),
             close_vault_hash: cdp_close_vault_hash(),
             update_vault_hash: cdp_update_vault_hash(),
-            liquidate_vault_hash: cdp_liquidate_vault_hash(),
         }
     }
 
@@ -37,11 +36,16 @@ impl CDPProject {
         &self, 
         context: &TransactionContext<C>
     ) -> Result<(), Error> {
+        // First, apply universal validation using the validation registry
+        let registry = create_cdp_validation_registry();
+        registry.validate(&context.recipe, &context.input_cells, &context.output_cells)
+            .map_err(|_| Error::InvalidArguments)?;
+        
+        // Then, apply method-specific business logic
         match context.method_path_hash {
             hash if hash == self.open_vault_hash => self.open_vault(context),
             hash if hash == self.close_vault_hash => self.close_vault(context),
             hash if hash == self.update_vault_hash => self.update_vault(context),
-            hash if hash == self.liquidate_vault_hash => self.liquidate_vault(context),
             _ => Err(Error::InvalidArguments),
         }
     }
@@ -52,20 +56,25 @@ impl CDPProject {
     ) -> Result<(), Error> {
         use crate::transaction_recipe::validate_cdp_create_args;
         
-        // Validate arguments
+        // Validate arguments format (business logic validation)
         validate_cdp_create_args(&context.arguments)?;
         
-        // Check that we have collateral inputs
-        let collateral_key = b"collateral".to_vec();
-        if !context.input_cells.custom_cells.contains_key(&collateral_key) {
-            return Err(Error::InsufficientCapacity);
-        }
+        // Business logic: Parse collateral and debt amounts
+        let collateral_amount = u128::from_le_bytes(
+            context.arguments[0][..16].try_into()
+                .map_err(|_| Error::InvalidArguments)?
+        );
+        let debt_amount = u128::from_le_bytes(
+            context.arguments[1][..16].try_into()
+                .map_err(|_| Error::InvalidArguments)?
+        );
         
-        // Check that we have vault output
-        let vault_key = b"vault".to_vec();
-        if !context.output_cells.custom_cells.contains_key(&vault_key) {
+        // Business logic: Check minimum collateral ratio, etc.
+        if collateral_amount == 0 {
             return Err(Error::InvalidArguments);
         }
+        
+        // Additional business logic would go here (collateral ratio checks, etc.)
         
         Ok(())
     }
@@ -74,14 +83,20 @@ impl CDPProject {
         &self, 
         context: &TransactionContext<C>
     ) -> Result<(), Error> {
-        // Check that we have vault cells in inputs
-        let vault_key = b"vault".to_vec();
-        if !context.input_cells.custom_cells.contains_key(&vault_key) {
-            return Err(Error::Unauthorized);
+        // Business logic: Parse vault ID from arguments
+        let vault_id = u64::from_le_bytes(
+            context.arguments[0][..8].try_into()
+                .map_err(|_| Error::InvalidArguments)?
+        );
+        
+        // Business logic: Verify vault has no outstanding debt
+        // In real implementation, would parse vault cell data and check debt amount
+        // For now, just validate the vault ID is reasonable
+        if vault_id == 0 {
+            return Err(Error::InvalidArguments);
         }
         
-        // Vault should have no debt to close
-        // In real implementation, would check vault data
+        // Additional business logic would go here (debt verification, etc.)
         
         Ok(())
     }
@@ -90,30 +105,61 @@ impl CDPProject {
         &self, 
         context: &TransactionContext<C>
     ) -> Result<(), Error> {
-        // Check that we have vault cells in inputs
-        let vault_key = b"vault".to_vec();
-        if !context.input_cells.custom_cells.contains_key(&vault_key) {
-            return Err(Error::Unauthorized);
+        // Business logic: Parse vault ID and new collateral amount from arguments
+        let vault_id = u64::from_le_bytes(
+            context.arguments[0][..8].try_into()
+                .map_err(|_| Error::InvalidArguments)?
+        );
+        let new_collateral_amount = u128::from_le_bytes(
+            context.arguments[1][..16].try_into()
+                .map_err(|_| Error::InvalidArguments)?
+        );
+        
+        // Business logic: Validate the update parameters
+        if vault_id == 0 {
+            return Err(Error::InvalidArguments);
         }
+        
+        // Additional business logic would go here (collateral ratio checks, etc.)
         
         Ok(())
     }
 
-    fn liquidate_vault<C: CellClassifier>(
-        &self, 
-        context: &TransactionContext<C>
-    ) -> Result<(), Error> {
-        // Check liquidation conditions
-        if context.arguments.len() < 2 {
-            return Err(Error::InvalidArguments);
-        }
-        
-        // Check that we have vault to liquidate
-        let vault_key = b"vault".to_vec();
-        if !context.input_cells.custom_cells.contains_key(&vault_key) {
-            return Err(Error::InvalidArguments);
-        }
-        
-        Ok(())
-    }
+}
+
+/// Create a validation registry for CDP transactions
+pub fn create_cdp_validation_registry() -> ValidationRegistry {
+    let mut registry = ValidationRegistry::new();
+    
+    // Add validation rules for open vault transaction
+    let open_vault_rules = TransactionValidationRules::new(b"CDP.openVault")
+        .with_arguments(2) // collateral_amount, debt_amount
+        // Input requirements
+        .with_known_cell(b"xudt", CellCountConstraint::at_least(1), CellCountConstraint::any()) // Collateral tokens
+        .with_known_cell(b"simple_ckb", CellCountConstraint::at_least(1), CellCountConstraint::any()) // For fees
+        // Output requirements  
+        .with_custom_cell(b"vault", CellCountConstraint::exactly(0), CellCountConstraint::exactly(1)) // Create vault
+        .with_custom_cell(b"stable", CellCountConstraint::exactly(0), CellCountConstraint::at_least(0)); // May mint stablecoin
+    
+    registry.register(open_vault_rules);
+    
+    // Add validation rules for close vault transaction
+    let close_vault_rules = TransactionValidationRules::new(b"CDP.closeVault")
+        .with_arguments(1) // vault_id
+        .with_custom_cell(b"vault", CellCountConstraint::exactly(1), CellCountConstraint::exactly(0)) // Consume vault
+        .with_custom_cell(b"stable", CellCountConstraint::at_least(1), CellCountConstraint::exactly(0)) // Burn stablecoin
+        .with_known_cell(b"xudt", CellCountConstraint::exactly(0), CellCountConstraint::at_least(1)); // Return collateral
+    
+    registry.register(close_vault_rules);
+    
+    // Add validation rules for update vault transaction
+    let update_vault_rules = TransactionValidationRules::new(b"CDP.updateVault")
+        .with_arguments(2) // vault_id, new_collateral_amount  
+        .with_custom_cell(b"vault", CellCountConstraint::exactly(1), CellCountConstraint::exactly(1)) // Update vault
+        .with_known_cell(b"xudt", CellCountConstraint::any(), CellCountConstraint::any()); // May add/remove collateral
+    
+    registry.register(update_vault_rules);
+    
+    
+    registry
 }

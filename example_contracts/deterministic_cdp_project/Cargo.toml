@@ -3,6 +3,15 @@ name = "deterministic_cdp_project"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = []
+library = []
+
+[[bin]]
+name = "deterministic_cdp_project"
+path = "src/main.rs"
+required-features = ["binary"]
+
 [dependencies]
 ckb-std = { version = "0.16.4", default-features = false, features = ["allocator", "ckb-types", "dummy-atomic"] }
 deterministic-cdp-shared = { path = "../../example_libs/deterministic_cdp_shared" }

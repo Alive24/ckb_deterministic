@@ -27,9 +27,9 @@ pub struct CellInfo {
 /// Cell classification result - completely generic
 #[derive(Debug, Clone, PartialEq)]
 pub enum CellClass {
-    /// Known cell type with string identifier (e.g., "protocol", "campaign", "udt")
+    /// Known cell type with string identifier (e.g., "xudt", "spore", "simple_ckb")
     Known(String),
-    /// Custom cell type with byte identifier for efficiency
+    /// Custom cell type with byte identifier for efficiency (e.g., project-specific cells)
     Custom(Vec<u8>),
     /// Unidentified cell that doesn't match any classification rules
     Unidentified,
