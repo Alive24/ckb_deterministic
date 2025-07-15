@@ -123,7 +123,22 @@ fn test_complete_open_vault_validation_flow() {
     // - At least 1 xUDT cell (collateral tokens) 
     // - At least 1 simple CKB cell (for fees)
     for i in 0..2 {
-        let xudt_cell = create_mock_cell(i, Source::Input, Some(XUDT_CODE_HASH), vec![0u8; 16]);
+        let mut xudt_cell = create_mock_cell(i, Source::Input, Some(XUDT_CODE_HASH), vec![0u8; 16]);
+        // Add proper lock script for xUDT (20-byte pubkey hash)
+        let valid_lock_args = vec![1u8; 20]; // Valid 20-byte pubkey hash
+        xudt_cell.lock = Script::new_builder()
+            .args(valid_lock_args.pack())
+            .build();
+        // Add proper type script for xUDT
+        let xudt_type_args = {
+            let mut args = vec![1u8; 32]; // Owner lock hash (32 bytes)
+            args.extend_from_slice(b"collateral_token"); // Token identifier
+            args
+        };
+        xudt_cell.type_script = Some(Script::new_builder()
+            .code_hash(Byte32::from_slice(&XUDT_CODE_HASH).unwrap())
+            .args(xudt_type_args.pack())
+            .build());
         input_cells.add_cell(xudt_cell, CellClass::known("xudt"));
     }
     
@@ -135,11 +150,31 @@ fn test_complete_open_vault_validation_flow() {
     // - May have stablecoin cells (debt tokens)
     let mut vault_cell = create_mock_cell(0, Source::Output, None, vec![1u8; 64]);
     vault_cell.type_hash = Some(VAULT_TYPE_HASH);
+    // Add proper type script for vault
+    let vault_type_args = {
+        let mut args = vec![1u8; 8]; // Vault ID (8 bytes)
+        args.extend_from_slice(b"protocol_params"); // Protocol parameters
+        args
+    };
+    vault_cell.type_script = Some(Script::new_builder()
+        .code_hash(Byte32::from_slice(&VAULT_TYPE_HASH).unwrap())
+        .args(vault_type_args.pack())
+        .build());
     output_cells.add_cell(vault_cell, CellClass::custom(b"vault".to_vec()));
     
     // Add some stablecoin output (optional according to validation rules)
     let mut stable_cell = create_mock_cell(1, Source::Output, None, vec![0u8; 16]);
     stable_cell.type_hash = Some(STABLE_TYPE_HASH);
+    // Add proper type script for stable token
+    let stable_type_args = {
+        let mut args = vec![1u8; 32]; // Issuer lock hash (32 bytes)
+        args.extend_from_slice(b"stable_token"); // Token identifier
+        args
+    };
+    stable_cell.type_script = Some(Script::new_builder()
+        .code_hash(Byte32::from_slice(&STABLE_TYPE_HASH).unwrap())
+        .args(stable_type_args.pack())
+        .build());
     output_cells.add_cell(stable_cell, CellClass::custom(b"stable".to_vec()));
     
     println!("✓ Created valid transaction structure");
@@ -286,4 +321,184 @@ fn test_validation_failure_scenarios() {
     }
     
     println!("\n=== Validation Failure Scenarios Test Completed ===");
+}
+
+#[test]
+fn test_enhanced_argument_validation() {
+    println!("\n=== Testing Enhanced Argument Validation ===");
+    
+    let validation_registry = create_cdp_validation_registry();
+    
+    // Test 1: Invalid collateral ratio - should fail custom validation
+    println!("Test 1: Testing insufficient collateral ratio validation");
+    let collateral_amount = 100u128; // Low collateral
+    let debt_amount = 150u128; // High debt - ratio = 100/150 = 67% < 150% minimum
+    
+    let recipe = create_open_vault_recipe(collateral_amount, debt_amount)
+        .expect("Should create recipe");
+    
+    let mut input_cells = ClassifiedCells::new();
+    let mut output_cells = ClassifiedCells::new();
+    
+    // Add valid cell structure
+    let mut xudt_cell = create_mock_cell(0, Source::Input, Some(XUDT_CODE_HASH), vec![0u8; 16]);
+    // Add proper lock script for xUDT (20-byte pubkey hash)
+    let valid_lock_args = vec![1u8; 20]; // Valid 20-byte pubkey hash
+    xudt_cell.lock = Script::new_builder()
+        .args(valid_lock_args.pack())
+        .build();
+    // Add proper type script for xUDT
+    let xudt_type_args = {
+        let mut args = vec![1u8; 32]; // Owner lock hash (32 bytes)
+        args.extend_from_slice(b"collateral_token"); // Token identifier
+        args
+    };
+    xudt_cell.type_script = Some(Script::new_builder()
+        .code_hash(Byte32::from_slice(&XUDT_CODE_HASH).unwrap())
+        .args(xudt_type_args.pack())
+        .build());
+    input_cells.add_cell(xudt_cell, CellClass::known("xudt"));
+    
+    let ckb_cell = create_mock_cell(1, Source::Input, None, Vec::new());
+    input_cells.add_cell(ckb_cell, CellClass::known("simple_ckb"));
+    
+    let mut vault_cell = create_mock_cell(0, Source::Output, None, vec![1u8; 64]);
+    vault_cell.type_hash = Some(VAULT_TYPE_HASH);
+    // Add proper type script for vault
+    let vault_type_args = {
+        let mut args = vec![1u8; 8]; // Vault ID (8 bytes)
+        args.extend_from_slice(b"protocol_params"); // Protocol parameters
+        args
+    };
+    vault_cell.type_script = Some(Script::new_builder()
+        .code_hash(Byte32::from_slice(&VAULT_TYPE_HASH).unwrap())
+        .args(vault_type_args.pack())
+        .build());
+    output_cells.add_cell(vault_cell, CellClass::custom(b"vault".to_vec()));
+    
+    // This should fail due to insufficient collateral ratio
+    let validation_result = validation_registry.validate(&recipe, &input_cells, &output_cells);
+    assert!(validation_result.is_err(), "Should fail validation for insufficient collateral ratio");
+    println!("✓ Correctly failed validation for insufficient collateral ratio");
+    
+    // Test 2: Zero collateral - should fail custom validation  
+    println!("Test 2: Testing zero collateral validation");
+    let zero_collateral_recipe = create_open_vault_recipe(0u128, 50u128)
+        .expect("Should create recipe");
+    
+    let validation_result = validation_registry.validate(&zero_collateral_recipe, &input_cells, &output_cells);
+    assert!(validation_result.is_err(), "Should fail validation for zero collateral");
+    println!("✓ Correctly failed validation for zero collateral");
+    
+    // Test 3: Valid collateral ratio - should pass all validation
+    println!("Test 3: Testing valid collateral ratio");
+    let good_collateral = 1500u128; // 1500 collateral
+    let good_debt = 1000u128; // 1000 debt - ratio = 1500/1000 = 150% (exactly minimum)
+    
+    let good_recipe = create_open_vault_recipe(good_collateral, good_debt)
+        .expect("Should create recipe");
+    
+    let validation_result = validation_registry.validate(&good_recipe, &input_cells, &output_cells);
+    assert!(validation_result.is_ok(), "Should pass validation for sufficient collateral ratio");
+    println!("✓ Correctly passed validation for sufficient collateral ratio");
+    
+    println!("\n=== Enhanced Argument Validation Test Completed ===");
+}
+
+#[test]
+fn test_script_argument_validation() {
+    println!("\n=== Testing Script Argument Validation ===");
+    
+    let validation_registry = create_cdp_validation_registry();
+    
+    // Test 1: Invalid lock script args length - should fail validation
+    println!("Test 1: Testing invalid lock script args length");
+    let recipe = create_open_vault_recipe(1000u128, 500u128)
+        .expect("Should create recipe");
+    
+    let mut input_cells = ClassifiedCells::new();
+    let mut output_cells = ClassifiedCells::new();
+    
+    // Create xUDT cell with INVALID lock args (wrong length)
+    let mut xudt_cell = create_mock_cell(0, Source::Input, Some(XUDT_CODE_HASH), vec![0u8; 16]);
+    // Modify lock script to have invalid args length (10 bytes instead of 20)
+    let invalid_lock_args = vec![1u8; 10]; // Wrong length!
+    xudt_cell.lock = Script::new_builder()
+        .args(invalid_lock_args.pack())
+        .build();
+    input_cells.add_cell(xudt_cell, CellClass::known("xudt"));
+    
+    let ckb_cell = create_mock_cell(1, Source::Input, None, Vec::new());
+    input_cells.add_cell(ckb_cell, CellClass::known("simple_ckb"));
+    
+    let mut vault_cell = create_mock_cell(0, Source::Output, None, vec![1u8; 64]);
+    vault_cell.type_hash = Some(VAULT_TYPE_HASH);
+    // Add proper type script for vault
+    let vault_type_args = {
+        let mut args = vec![1u8; 8]; // Vault ID (8 bytes)
+        args.extend_from_slice(b"protocol_params"); // Protocol parameters
+        args
+    };
+    vault_cell.type_script = Some(Script::new_builder()
+        .code_hash(Byte32::from_slice(&VAULT_TYPE_HASH).unwrap())
+        .args(vault_type_args.pack())
+        .build());
+    output_cells.add_cell(vault_cell, CellClass::custom(b"vault".to_vec()));
+    
+    // This should fail due to invalid lock args length
+    let validation_result = validation_registry.validate(&recipe, &input_cells, &output_cells);
+    assert!(validation_result.is_err(), "Should fail validation for invalid lock args length");
+    println!("✓ Correctly failed validation for invalid lock args length");
+    
+    // Test 2: Zero lock script args - should fail validation
+    println!("Test 2: Testing zero lock script args");
+    input_cells = ClassifiedCells::new();
+    
+    // Create xUDT cell with zero lock args
+    let mut xudt_cell = create_mock_cell(0, Source::Input, Some(XUDT_CODE_HASH), vec![0u8; 16]);
+    let zero_lock_args = vec![0u8; 20]; // All zeros!
+    xudt_cell.lock = Script::new_builder()
+        .args(zero_lock_args.pack())
+        .build();
+    input_cells.add_cell(xudt_cell, CellClass::known("xudt"));
+    
+    let ckb_cell = create_mock_cell(1, Source::Input, None, Vec::new());
+    input_cells.add_cell(ckb_cell, CellClass::known("simple_ckb"));
+    
+    let validation_result = validation_registry.validate(&recipe, &input_cells, &output_cells);
+    assert!(validation_result.is_err(), "Should fail validation for zero lock args");
+    println!("✓ Correctly failed validation for zero lock args");
+    
+    // Test 3: Valid lock script args - should pass validation
+    println!("Test 3: Testing valid lock script args");
+    input_cells = ClassifiedCells::new();
+    
+    // Create xUDT cell with valid lock args
+    let mut xudt_cell = create_mock_cell(0, Source::Input, Some(XUDT_CODE_HASH), vec![0u8; 16]);
+    let valid_lock_args = vec![1u8; 20]; // Valid 20-byte pubkey hash
+    xudt_cell.lock = Script::new_builder()
+        .args(valid_lock_args.pack())
+        .build();
+    
+    // Also need to set valid type script with proper args for xUDT
+    let valid_type_args = {
+        let mut args = vec![1u8; 32]; // Owner lock hash (32 bytes)
+        args.extend_from_slice(b"unique_id"); // Unique identifier
+        args
+    };
+    xudt_cell.type_script = Some(Script::new_builder()
+        .code_hash(Byte32::from_slice(&XUDT_CODE_HASH).unwrap())
+        .args(valid_type_args.pack())
+        .build());
+    
+    input_cells.add_cell(xudt_cell, CellClass::known("xudt"));
+    
+    let ckb_cell = create_mock_cell(1, Source::Input, None, Vec::new());
+    input_cells.add_cell(ckb_cell, CellClass::known("simple_ckb"));
+    
+    let validation_result = validation_registry.validate(&recipe, &input_cells, &output_cells);
+    assert!(validation_result.is_ok(), "Should pass validation for valid script args");
+    println!("✓ Correctly passed validation for valid script args");
+    
+    println!("\n=== Script Argument Validation Test Completed ===");
 }

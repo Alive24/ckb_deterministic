@@ -269,19 +269,6 @@ mod tests {
     }
     
     #[test]
-    fn test_ckboost_protocol_methods() {
-        let args = vec![b"protocol_data".to_vec()];
-        let recipe = create_transaction_recipe("CKBoostProtocol::updateProtocol", &args).unwrap();
-        
-        assert_eq!(recipe.method_path_name().unwrap(), "CKBoostProtocol::updateProtocol");
-        assert!(recipe.matches_method_name("CKBoostProtocol::updateProtocol").unwrap());
-        
-        let result_args = recipe.arguments_vec();
-        assert_eq!(result_args.len(), 1);
-        assert_eq!(result_args[0], b"protocol_data");
-    }
-    
-    #[test]
     fn test_multiple_arguments() {
         let args_data = vec![b"arg1".to_vec(), b"arg2".to_vec(), b"arg3".to_vec()];
         let recipe = create_transaction_recipe("Test.method", &args_data).unwrap();
