@@ -429,6 +429,52 @@ impl<C: CellClassifier> CellCollector<C> {
     }
 }
 
+/// Helper function to create a simple CKB cell class
+/// A simple CKB cell has no type script (type_script is None)
+pub fn simple_ckb_cell_class() -> CellClass {
+    CellClass::known("simple_ckb")
+}
+
+/// Helper function to add simple CKB cell rule to a classifier
+/// Simple CKB cells are known cells identified by having no type script
+/// Uses a custom predicate rule but classifies as a known cell type
+pub fn add_simple_ckb_rule(classifier: RuleBasedClassifier) -> RuleBasedClassifier {
+    classifier.add_custom(
+        "simple_ckb",
+        |cell| cell.type_script.is_none(),
+        simple_ckb_cell_class()
+    )
+}
+
+/// Create a classifier with all universal known scripts
+/// This can be extended by projects with their own custom cell types
+/// 
+/// Example usage:
+/// ```
+/// use crate::known_scripts::KnownScript;
+/// 
+/// let classifier = create_universal_classifier("my_project")
+///     .add_rule(ClassificationRule::TypeCodeHash {
+///         code_hash: xudt_code_hash,
+///         class: KnownScript::XUdt.cell_class(),
+///     })
+///     .add_rule(ClassificationRule::TypeCodeHash {
+///         code_hash: spore_code_hash,
+///         class: KnownScript::Spore.cell_class(),
+///     });
+/// ```
+pub fn create_universal_classifier(name: impl Into<String>) -> RuleBasedClassifier {
+    let mut classifier = RuleBasedClassifier::new(name);
+    
+    // Add simple CKB cell rule first (highest priority)
+    classifier = add_simple_ckb_rule(classifier);
+    
+    // Projects should add code hash rules for known scripts based on their network configuration
+    // using add_rule() method with ClassificationRule::TypeCodeHash or ClassificationRule::LockCodeHash
+    
+    classifier
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
