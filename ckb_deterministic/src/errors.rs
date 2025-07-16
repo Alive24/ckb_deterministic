@@ -43,6 +43,20 @@ pub enum ValidationError {
     },
     /// Custom validation error with message
     CustomValidation(String),
+    /// Missing required cell dependency
+    MissingCellDep {
+        tx_hash: [u8; 32],
+        index: u32,
+        dep_type: String,
+    },
+    /// Missing required header dependency
+    MissingHeaderDep {
+        header_hash: [u8; 32],
+    },
+    /// Invalid dep group
+    InvalidDepGroup {
+        reason: String,
+    },
 }
 
 impl From<ValidationError> for Error {

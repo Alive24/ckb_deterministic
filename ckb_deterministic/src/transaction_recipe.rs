@@ -6,7 +6,10 @@
 /// Method paths are calculated using Blake2b-256 hash (first 8 bytes as u64).
 
 use crate::errors::Error;
-use crate::generated::{TransactionRecipe, Bytes, BytesVec};
+use crate::generated::{
+    TransactionRecipe, Bytes, BytesVec, CellDep, CellDepVec, CellDepVecOpt,
+    Byte32, Byte32Vec, Byte32VecOpt, OutPoint, Uint32
+};
 use ckb_std::{high_level, ckb_constants::Source};
 use ckb_hash::blake2b_256;
 extern crate alloc;
@@ -211,6 +214,98 @@ pub fn matches_method_path_string(recipe: &TransactionRecipe, expected_path: &st
     matches_method_path(recipe, expected_path.as_bytes())
 }
 
+/// Parameters for creating a transaction recipe with dependencies
+pub struct RecipeParams<'a> {
+    pub method_name: &'a str,
+    pub arguments: &'a [Vec<u8>],
+    pub cell_deps: Option<&'a [CellDepParams]>,
+    pub header_deps: Option<&'a [[u8; 32]]>,
+}
+
+/// Parameters for creating a cell dependency
+pub struct CellDepParams {
+    pub tx_hash: [u8; 32],
+    pub index: u32,
+    pub dep_type: u8, // 0 = code, 1 = dep_group
+}
+
+/// Create a TransactionRecipe with optional dependencies
+pub fn create_transaction_recipe_with_deps(params: RecipeParams) -> Result<TransactionRecipe, Error> {
+    // Convert method path name to bytes
+    let method_path_bytes = Bytes::new_builder()
+        .set(params.method_name.as_bytes().iter().copied().map(Into::into).collect())
+        .build();
+    
+    // Convert arguments to BytesVec
+    let mut args_builder = BytesVec::new_builder();
+    for arg in params.arguments {
+        let arg_bytes = Bytes::new_builder()
+            .set(arg.iter().copied().map(Into::into).collect())
+            .build();
+        args_builder = args_builder.push(arg_bytes);
+    }
+    let arguments = args_builder.build();
+    
+    // Build cell deps if provided
+    let cell_deps = if let Some(deps) = params.cell_deps {
+        let mut deps_builder = CellDepVec::new_builder();
+        for dep_param in deps {
+            let tx_hash = Byte32::new_builder()
+                .set({
+                    let bytes: [molecule::prelude::Byte; 32] = dep_param.tx_hash.into_iter().map(|b| b.into()).collect::<Vec<_>>().try_into().unwrap();
+                    bytes
+                })
+                .build();
+            let index = Uint32::new_builder()
+                .set({
+                    let bytes: [molecule::prelude::Byte; 4] = dep_param.index.to_le_bytes().into_iter().map(|b| b.into()).collect::<Vec<_>>().try_into().unwrap();
+                    bytes
+                })
+                .build();
+            let out_point = OutPoint::new_builder()
+                .tx_hash(tx_hash)
+                .index(index)
+                .build();
+            let cell_dep = CellDep::new_builder()
+                .out_point(out_point)
+                .dep_type(molecule::prelude::Byte::new(dep_param.dep_type))
+                .build();
+            deps_builder = deps_builder.push(cell_dep);
+        }
+        CellDepVecOpt::new_builder()
+            .set(Some(deps_builder.build()))
+            .build()
+    } else {
+        CellDepVecOpt::new_builder().build()
+    };
+    
+    // Build header deps if provided
+    let header_deps = if let Some(deps) = params.header_deps {
+        let mut deps_builder = Byte32Vec::new_builder();
+        for hash in deps {
+            let byte32 = Byte32::new_builder()
+                .set({
+                    let bytes: [molecule::prelude::Byte; 32] = hash.iter().map(|&b| b.into()).collect::<Vec<_>>().try_into().unwrap();
+                    bytes
+                })
+                .build();
+            deps_builder = deps_builder.push(byte32);
+        }
+        Byte32VecOpt::new_builder()
+            .set(Some(deps_builder.build()))
+            .build()
+    } else {
+        Byte32VecOpt::new_builder().build()
+    };
+    
+    Ok(TransactionRecipe::new_builder()
+        .method_path(method_path_bytes)
+        .arguments(arguments)
+        .cell_deps(cell_deps)
+        .header_deps(header_deps)
+        .build())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -276,5 +371,44 @@ mod tests {
         let result_args = recipe.arguments_vec();
         assert_eq!(result_args.len(), 3);
         assert_eq!(result_args, args_data);
+    }
+    
+    #[test]
+    fn test_create_recipe_with_deps() {
+        let args = vec![b"arg1".to_vec()];
+        let cell_deps = vec![
+            CellDepParams {
+                tx_hash: [1u8; 32],
+                index: 0,
+                dep_type: 0, // code
+            },
+            CellDepParams {
+                tx_hash: [2u8; 32],
+                index: 1,
+                dep_type: 1, // dep_group
+            },
+        ];
+        let header_deps = vec![[3u8; 32], [4u8; 32]];
+        
+        let params = RecipeParams {
+            method_name: "UDT.transfer",
+            arguments: &args,
+            cell_deps: Some(&cell_deps),
+            header_deps: Some(&header_deps),
+        };
+        
+        let recipe = create_transaction_recipe_with_deps(params).unwrap();
+        
+        // Test basic fields
+        assert_eq!(recipe.method_path_name().unwrap(), "UDT.transfer");
+        assert_eq!(recipe.arguments_vec().len(), 1);
+        
+        // Test cell deps
+        let deps = recipe.cell_deps().to_opt().unwrap();
+        assert_eq!(deps.len(), 2);
+        
+        // Test header deps
+        let hdeps = recipe.header_deps().to_opt().unwrap();
+        assert_eq!(hdeps.len(), 2);
     }
 }

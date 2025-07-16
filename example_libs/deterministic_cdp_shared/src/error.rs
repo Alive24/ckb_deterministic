@@ -19,6 +19,9 @@ pub enum Error {
     TooManyCells = 44,
     UnexpectedCellType = 45,
     CustomValidationFailed = 46,
+    MissingCellDep = 47,
+    MissingHeaderDep = 48,
+    InvalidDepGroup = 49,
     
     // System errors (61-80)
     SystemError = 61,
@@ -60,6 +63,9 @@ impl From<ckb_deterministic::errors::ValidationError> for Error {
             CellCountViolation { is_input: false, .. } => Error::TooManyCells,
             UnidentifiedCells { .. } => Error::UnexpectedCellType,
             CustomValidation(_) => Error::CustomValidationFailed,
+            MissingCellDep { .. } => Error::MissingCellDep,
+            MissingHeaderDep { .. } => Error::MissingHeaderDep,
+            InvalidDepGroup { .. } => Error::InvalidDepGroup,
         }
     }
 }

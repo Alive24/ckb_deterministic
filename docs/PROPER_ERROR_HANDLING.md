@@ -21,6 +21,9 @@ pub enum Error {
     MissingRequiredCells = 43,     // Required input cells not found
     TooManyCells = 44,             // Too many output cells
     CustomValidationFailed = 46,   // Business rule failed
+    MissingCellDep = 47,           // Required cell dependency not found
+    MissingHeaderDep = 48,         // Required header dependency not found
+    InvalidDepGroup = 49,          // Invalid dependency group
     
     // System errors (61-80)
     IndexOutOfBound = 62,
@@ -40,6 +43,9 @@ impl From<ValidationError> for Error {
             CellCountViolation { is_input: true, .. } => Error::MissingRequiredCells,  // 43
             CellCountViolation { is_input: false, .. } => Error::TooManyCells,         // 44
             CustomValidation(_) => Error::CustomValidationFailed,     // 46
+            MissingCellDep { .. } => Error::MissingCellDep,          // 47
+            MissingHeaderDep { .. } => Error::MissingHeaderDep,      // 48
+            InvalidDepGroup { .. } => Error::InvalidDepGroup,        // 49
         }
     }
 }
@@ -52,7 +58,7 @@ impl From<ValidationError> for Error {
 ❌ .map_err(|_| Error::InvalidArguments)?;  // Always returns 1
 
 // Properly propagate specific errors:
-✅ .map_err(|e| Error::from(e))?;  // Returns 41-46 based on actual error
+✅ .map_err(|e| Error::from(e))?;  // Returns 41-49 based on actual error
 ```
 
 ## Benefits
@@ -69,5 +75,8 @@ impl From<ValidationError> for Error {
 - **Error 43**: No xUDT cells found for collateral
 - **Error 44**: Created 2 vault outputs instead of 1
 - **Error 46**: Collateral ratio 125% is below minimum 150%
+- **Error 47**: xUDT script dependency missing from cell_deps
+- **Error 48**: Required header dependency for time validation not found
+- **Error 49**: Invalid dep group structure or resolution failed
 
 This approach ensures errors are informative and actionable, not generic "InvalidArguments".

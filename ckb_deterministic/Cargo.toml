@@ -3,9 +3,13 @@ name = "ckb_deterministic"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+library = []
+native-simulator = ["library", "ckb-std/native-simulator"]
+
 [dependencies]
 ckb-std = { version = "0.16.4", default-features = false, features = ["allocator", "ckb-types", "dummy-atomic"] }
-ckb-hash = "0.118.0"
+ckb-hash = { version = "0.202.0", default-features = false, features = ["ckb-contract"] }
 molecule = { version = "0.8.0", default-features = false, features = ["bytes_vec"] }
 
 [dev-dependencies]

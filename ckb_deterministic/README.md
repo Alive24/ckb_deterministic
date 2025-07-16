@@ -18,7 +18,6 @@
 ##### Shared Code
 
 - Transaction Skeleton: From recipe
-- Serialization and Deserialization: `serde-molecules` + `serde-wasm-bindgen`
 - Deterministic Calculation: CellInput -> CellOutput + OutputData
 - (TBD) Verification on Data Hash
 
@@ -54,11 +53,3 @@
     - Recipe-based overriding
 - (Optional) Project Public Lock
     - Type ID Authentication for public cells
-
-## TODO
-
-0. CLI
-1. Define recipe in Rust
-    - Better hinting and validation
-    - Easier code scaffolding
-2. Spawn-based invocable recipe validations

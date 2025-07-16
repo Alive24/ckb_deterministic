@@ -97,8 +97,17 @@ impl CDPProject {
         // - Error code 44: Too many cells (e.g., multiple vault outputs when expecting 1)
         // - Error code 45: Unexpected cell type (unidentified cells in strict mode)
         // - Error code 46: Custom validation failed (e.g., collateral ratio too low)
-        registry.validate(&context.recipe, &context.input_cells, &context.output_cells)
-            .map_err(|e| Error::from(e))?;
+        // - Error code 47: Missing required cell dependency (e.g., xUDT script not in deps)
+        // - Error code 48: Missing required header dependency 
+        // - Error code 49: Invalid dep group
+        registry.validate_with_deps(
+            &context.recipe, 
+            &context.input_cells, 
+            &context.output_cells,
+            &context.cell_deps,
+            &context.header_deps
+        )
+        .map_err(|e| Error::from(e))?;
         
         // Then, apply method-specific business logic
         match context.method_path_hash {

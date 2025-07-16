@@ -3,7 +3,6 @@
 
 use crate::cell_classifier::CellClass;
 extern crate alloc;
-use alloc::string::String;
 use alloc::vec::Vec;
 use alloc::vec;
 

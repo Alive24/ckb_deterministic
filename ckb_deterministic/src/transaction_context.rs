@@ -7,9 +7,12 @@ use crate::errors::Error;
 use crate::generated::TransactionRecipe;
 use crate::transaction_recipe::{self as recipe, TransactionRecipeExt};
 use crate::cell_classifier::{CellCollector, CellClassifier, ClassifiedCells};
+use crate::transaction_deps::{CellDepInfo, CellDepVecExt};
 use ckb_std::debug;
 extern crate alloc;
 use alloc::{vec::Vec, string::String};
+#[cfg(feature = "native-simulator")]
+use alloc::format;
 use core::{
     option::Option::*,
     result::{Result, Result::*},
@@ -25,6 +28,8 @@ pub struct TransactionContext<C: CellClassifier> {
     pub arguments: Vec<Vec<u8>>,
     pub input_cells: ClassifiedCells,
     pub output_cells: ClassifiedCells,
+    pub cell_deps: Vec<CellDepInfo>,
+    pub header_deps: Vec<[u8; 32]>,
     _phantom: core::marker::PhantomData<C>,
 }
 
@@ -62,6 +67,31 @@ impl<C: CellClassifier> TransactionContext<C> {
                output_cells.total_cell_count(), 
                output_cells.unidentified_cells.len());
         
+        // Extract cell deps and header deps from recipe if present
+        let cell_deps = if let Some(deps) = recipe.cell_deps().to_opt() {
+            deps.to_info_vec()?
+        } else {
+            Vec::new()
+        };
+        
+        let header_deps = if let Some(deps) = recipe.header_deps().to_opt() {
+            let mut hashes = Vec::new();
+            for i in 0..deps.len() {
+                if let Some(hash) = deps.get(i) {
+                    let raw_data = hash.raw_data();
+                    let mut hash_bytes = [0u8; 32];
+                    hash_bytes.copy_from_slice(&raw_data);
+                    hashes.push(hash_bytes);
+                }
+            }
+            hashes
+        } else {
+            Vec::new()
+        };
+        
+        debug!("Cell deps count: {}", cell_deps.len());
+        debug!("Header deps count: {}", header_deps.len());
+        
         Ok(Self {
             recipe,
             method_path_hash,
@@ -69,6 +99,8 @@ impl<C: CellClassifier> TransactionContext<C> {
             arguments,
             input_cells,
             output_cells,
+            cell_deps,
+            header_deps,
             _phantom: core::marker::PhantomData,
         })
     }
@@ -113,6 +145,8 @@ impl<C: CellClassifier> TransactionContext<C> {
             output_known_cells: self.output_cells.known_cells.len(),
             output_custom_cells: self.output_cells.custom_cells.len(),
             output_unidentified_cells: self.output_cells.unidentified_cells.len(),
+            cell_deps_count: self.cell_deps.len(),
+            header_deps_count: self.header_deps.len(),
         }
     }
 }
@@ -129,6 +163,8 @@ pub struct TransactionSummary {
     pub output_known_cells: usize,
     pub output_custom_cells: usize,
     pub output_unidentified_cells: usize,
+    pub cell_deps_count: usize,
+    pub header_deps_count: usize,
 }
 
 /// Builder for creating transaction contexts with different configurations
@@ -185,6 +221,8 @@ mod tests {
             output_known_cells: 2,
             output_custom_cells: 1,
             output_unidentified_cells: 0,
+            cell_deps_count: 2,
+            header_deps_count: 1,
         };
         
         // Test that summary contains expected values
@@ -192,6 +230,8 @@ mod tests {
         assert_eq!(summary.method_path_hash, 0x123456789abcdef0);
         assert_eq!(summary.argument_count, 3);
         assert_eq!(summary.input_known_cells, 2);
+        assert_eq!(summary.cell_deps_count, 2);
+        assert_eq!(summary.header_deps_count, 1);
     }
     
     #[test]

@@ -4,11 +4,13 @@
 //! in custom validators, similar to Jest's expect/assert patterns.
 
 extern crate alloc;
-use alloc::{format, string::{String, ToString}, vec::Vec};
+use alloc::{format, string::{String, ToString}, vec::Vec, ffi};
 use crate::{
     generated::TransactionRecipe,
     cell_classifier::ClassifiedCells,
     transaction_recipe::TransactionRecipeExt,
+    transaction_deps::{CellDepInfo, DepType},
+    known_scripts::{KnownScript, Network, get_script_info},
 };
 
 /// Main entry point for assertions - creates an expectation on a value
@@ -468,4 +470,157 @@ macro_rules! validate_all {
         )+
         Ok::<(), String>(())
     }};
+}
+
+/// Create expectation for cell dependencies
+pub fn expect_deps(deps: &[CellDepInfo]) -> DepsExpectation {
+    DepsExpectation { deps }
+}
+
+/// Create expectation for header dependencies
+pub fn expect_headers(headers: &[[u8; 32]]) -> HeadersExpectation {
+    HeadersExpectation { headers }
+}
+
+/// Expectation for cell dependencies
+pub struct DepsExpectation<'a> {
+    deps: &'a [CellDepInfo],
+}
+
+impl<'a> DepsExpectation<'a> {
+    /// Assert that a specific cell dep exists
+    pub fn to_have_cell_dep(self, tx_hash: &[u8; 32], index: u32) -> Result<(), String> {
+        let found = self.deps.iter().any(|dep| {
+            &dep.out_point.tx_hash == tx_hash && dep.out_point.index == index
+        });
+        
+        if found {
+            Ok(())
+        } else {
+            Err(format!(
+                "Expected cell dep with tx_hash: 0x{}, index: {} not found",
+                ckb_std::high_level::encode_hex(tx_hash).into_string().unwrap_or_else(|_| "<invalid_hex>".to_string()),
+                index
+            ))
+        }
+    }
+    
+    /// Assert that a specific dep group exists
+    pub fn to_have_dep_group(self, tx_hash: &[u8; 32], index: u32) -> Result<(), String> {
+        let found = self.deps.iter().any(|dep| {
+            &dep.out_point.tx_hash == tx_hash && 
+            dep.out_point.index == index &&
+            dep.dep_type == DepType::DepGroup
+        });
+        
+        if found {
+            Ok(())
+        } else {
+            Err(format!(
+                "Expected dep group with tx_hash: 0x{}, index: {} not found",
+                ckb_std::high_level::encode_hex(tx_hash).into_string().unwrap_or_else(|_| "<invalid_hex>".to_string()),
+                index
+            ))
+        }
+    }
+    
+    /// Assert that deps for a known script are present
+    pub fn to_have_deps_for_script(self, script: KnownScript, network: Network) -> Result<(), String> {
+        if let Some(script_info) = get_script_info(script, network) {
+            for (tx_hash_str, index, dep_type_u8) in &script_info.cell_deps {
+                // Convert hex string to bytes
+                let tx_hash = hex_to_bytes(tx_hash_str)
+                    .map_err(|_| format!("Invalid hex in script info: {}", tx_hash_str))?;
+                let dep_type = match *dep_type_u8 {
+                    0 => DepType::Code,
+                    1 => DepType::DepGroup,
+                    _ => DepType::Code,
+                };
+                
+                let found = self.deps.iter().any(|dep| {
+                    dep.out_point.tx_hash == tx_hash && 
+                    dep.out_point.index == *index &&
+                    dep.dep_type == dep_type
+                });
+                
+                if !found {
+                    return Err(format!(
+                        "Missing dependency for {}: tx_hash: 0x{}, index: {}, type: {:?}",
+                        script.identifier(),
+                        ckb_std::high_level::encode_hex(&tx_hash).into_string().unwrap_or_else(|_| "<invalid_hex>".to_string()),
+                        index,
+                        dep_type
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+    
+    /// Assert that the number of deps matches
+    pub fn to_have_count(self, expected: usize) -> Result<(), String> {
+        if self.deps.len() == expected {
+            Ok(())
+        } else {
+            Err(format!(
+                "Expected {} cell deps, but found {}",
+                expected,
+                self.deps.len()
+            ))
+        }
+    }
+}
+
+/// Expectation for header dependencies
+pub struct HeadersExpectation<'a> {
+    headers: &'a [[u8; 32]],
+}
+
+impl<'a> HeadersExpectation<'a> {
+    /// Assert that a specific header is included
+    pub fn to_have_header(self, header_hash: &[u8; 32]) -> Result<(), String> {
+        if self.headers.contains(header_hash) {
+            Ok(())
+        } else {
+            Err(format!(
+                "Expected header dep with hash: 0x{} not found",
+                ckb_std::high_level::encode_hex(header_hash).into_string().unwrap_or_else(|_| "<invalid_hex>".to_string())
+            ))
+        }
+    }
+    
+    /// Assert that the number of headers matches
+    pub fn to_have_count(self, expected: usize) -> Result<(), String> {
+        if self.headers.len() == expected {
+            Ok(())
+        } else {
+            Err(format!(
+                "Expected {} header deps, but found {}",
+                expected,
+                self.headers.len()
+            ))
+        }
+    }
+}
+
+/// Helper to convert hex string to bytes using ckb-std
+fn hex_to_bytes(hex: &str) -> Result<[u8; 32], String> {
+    use ckb_std::high_level::decode_hex;
+    
+    let hex = hex.trim_start_matches("0x");
+    
+    // Convert to CString for ckb-std decode_hex
+    let hex_cstr = ffi::CString::new(hex)
+        .map_err(|_| "Invalid hex string: contains null bytes".to_string())?;
+    
+    let decoded = decode_hex(&hex_cstr)
+        .map_err(|_| "Failed to decode hex string".to_string())?;
+    
+    if decoded.len() != 32 {
+        return Err(format!("Invalid hash length: expected 32 bytes, got {}", decoded.len()));
+    }
+    
+    let mut result = [0u8; 32];
+    result.copy_from_slice(&decoded);
+    Ok(result)
 }

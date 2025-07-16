@@ -7,11 +7,13 @@ use crate::cell_classifier::ClassifiedCells;
 use crate::errors::ValidationError;
 use crate::generated::TransactionRecipe;
 use crate::transaction_recipe::TransactionRecipeExt;
+use crate::known_scripts::{KnownScript, Network, get_script_info};
+use crate::transaction_deps::{CellDepInfo, DepType};
 extern crate alloc;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use alloc::string::{String, ToString};
-use alloc::format;
+use alloc::{format, ffi};
 
 /// Cell count constraint for validation
 #[derive(Debug, Clone, Copy)]
@@ -119,6 +121,14 @@ pub struct CellTypeRule {
     pub output_constraint: CellCountConstraint,
 }
 
+/// Required dependency specification
+#[derive(Debug, Clone)]
+pub struct RequiredDep {
+    pub tx_hash: [u8; 32],
+    pub index: u32,
+    pub dep_type: DepType,
+}
+
 /// Complete validation rules for a transaction type
 #[derive(Debug, Clone)]
 pub struct TransactionValidationRules {
@@ -130,8 +140,18 @@ pub struct TransactionValidationRules {
     pub cell_rules: Vec<CellTypeRule>,
     /// Whether to allow unidentified cells
     pub allow_unidentified: bool,
+    /// Required cell dependencies
+    pub required_cell_deps: Vec<RequiredDep>,
+    /// Required header dependencies
+    pub required_header_deps: Vec<[u8; 32]>,
+    /// Automatically validate known script dependencies
+    pub auto_validate_known_scripts: bool,
+    /// Network for known script validation
+    pub network: Network,
     /// Custom validation function (optional)
-    pub custom_validator: Option<fn(&TransactionRecipe, &ClassifiedCells, &ClassifiedCells) -> Result<(), String>>,
+    pub custom_validator: Option<fn(&TransactionRecipe, &ClassifiedCells, &ClassifiedCells, &[CellDepInfo], &[[u8; 32]]) -> Result<(), String>>,
+    /// Custom dependency validation function (optional)
+    pub dep_validator: Option<fn(&[CellDepInfo], &[[u8; 32]]) -> Result<(), String>>,
 }
 
 impl TransactionValidationRules {
@@ -142,7 +162,12 @@ impl TransactionValidationRules {
             expected_arguments: None,
             cell_rules: Vec::new(),
             allow_unidentified: false,
+            required_cell_deps: Vec::new(),
+            required_header_deps: Vec::new(),
+            auto_validate_known_scripts: false,
+            network: Network::Mainnet,
             custom_validator: None,
+            dep_validator: None,
         }
     }
     
@@ -193,9 +218,42 @@ impl TransactionValidationRules {
     /// Add a custom validation function
     pub fn with_custom_validator(
         mut self,
-        validator: fn(&TransactionRecipe, &ClassifiedCells, &ClassifiedCells) -> Result<(), String>,
+        validator: fn(&TransactionRecipe, &ClassifiedCells, &ClassifiedCells, &[CellDepInfo], &[[u8; 32]]) -> Result<(), String>,
     ) -> Self {
         self.custom_validator = Some(validator);
+        self
+    }
+    
+    /// Add a required cell dependency
+    pub fn with_required_cell_dep(mut self, tx_hash: [u8; 32], index: u32, dep_type: DepType) -> Self {
+        self.required_cell_deps.push(RequiredDep { tx_hash, index, dep_type });
+        self
+    }
+    
+    /// Add a required header dependency
+    pub fn with_required_header_dep(mut self, header_hash: [u8; 32]) -> Self {
+        self.required_header_deps.push(header_hash);
+        self
+    }
+    
+    /// Enable automatic validation of known script dependencies
+    pub fn with_auto_known_script_validation(mut self) -> Self {
+        self.auto_validate_known_scripts = true;
+        self
+    }
+    
+    /// Set the network for known script validation
+    pub fn with_network(mut self, network: Network) -> Self {
+        self.network = network;
+        self
+    }
+    
+    /// Add a custom dependency validation function
+    pub fn with_dep_validator(
+        mut self,
+        validator: fn(&[CellDepInfo], &[[u8; 32]]) -> Result<(), String>,
+    ) -> Self {
+        self.dep_validator = Some(validator);
         self
     }
     
@@ -205,6 +263,18 @@ impl TransactionValidationRules {
         recipe: &TransactionRecipe,
         input_cells: &ClassifiedCells,
         output_cells: &ClassifiedCells,
+    ) -> Result<(), ValidationError> {
+        self.validate_with_deps(recipe, input_cells, output_cells, &[], &[])
+    }
+    
+    /// Validate a transaction with dependencies against these rules
+    pub fn validate_with_deps(
+        &self,
+        recipe: &TransactionRecipe,
+        input_cells: &ClassifiedCells,
+        output_cells: &ClassifiedCells,
+        cell_deps: &[CellDepInfo],
+        header_deps: &[[u8; 32]],
     ) -> Result<(), ValidationError> {
         // Check method path
         let recipe_path = recipe.method_path_bytes();
@@ -280,12 +350,115 @@ impl TransactionValidationRules {
         
         // Run custom validator if provided
         if let Some(validator) = self.custom_validator {
-            validator(recipe, input_cells, output_cells)
+            validator(recipe, input_cells, output_cells, cell_deps, header_deps)
+                .map_err(|msg| ValidationError::CustomValidation(msg))?;
+        }
+        
+        // Validate required cell dependencies
+        for required_dep in &self.required_cell_deps {
+            let found = cell_deps.iter().any(|dep| {
+                dep.out_point.tx_hash == required_dep.tx_hash && 
+                dep.out_point.index == required_dep.index &&
+                dep.dep_type == required_dep.dep_type
+            });
+            
+            if !found {
+                return Err(ValidationError::MissingCellDep {
+                    tx_hash: required_dep.tx_hash,
+                    index: required_dep.index,
+                    dep_type: format!("{:?}", required_dep.dep_type),
+                });
+            }
+        }
+        
+        // Validate required header dependencies
+        for required_header in &self.required_header_deps {
+            if !header_deps.contains(required_header) {
+                return Err(ValidationError::MissingHeaderDep {
+                    header_hash: *required_header,
+                });
+            }
+        }
+        
+        // Auto-validate known script dependencies if enabled
+        if self.auto_validate_known_scripts {
+            // Check all known cells in inputs and outputs
+            for (script_name, _cells) in &input_cells.known_cells {
+                if let Some(script) = KnownScript::all().iter()
+                    .find(|s| s.identifier() == script_name) {
+                    self.validate_known_script_deps(*script, cell_deps)?;
+                }
+            }
+            for (script_name, _cells) in &output_cells.known_cells {
+                if let Some(script) = KnownScript::all().iter()
+                    .find(|s| s.identifier() == script_name) {
+                    self.validate_known_script_deps(*script, cell_deps)?;
+                }
+            }
+        }
+        
+        // Run custom dependency validator if provided
+        if let Some(validator) = self.dep_validator {
+            validator(cell_deps, header_deps)
                 .map_err(|msg| ValidationError::CustomValidation(msg))?;
         }
         
         Ok(())
     }
+    
+    /// Helper to validate dependencies for a known script
+    fn validate_known_script_deps(&self, script: KnownScript, cell_deps: &[CellDepInfo]) -> Result<(), ValidationError> {
+        if let Some(script_info) = get_script_info(script, self.network) {
+            for (tx_hash_str, index, dep_type_u8) in &script_info.cell_deps {
+                // Convert hex string to bytes
+                let tx_hash = hex_to_bytes(tx_hash_str)?;
+                let dep_type = match *dep_type_u8 {
+                    0 => DepType::Code,
+                    1 => DepType::DepGroup,
+                    _ => DepType::Code,
+                };
+                
+                let found = cell_deps.iter().any(|dep| {
+                    dep.out_point.tx_hash == tx_hash && 
+                    dep.out_point.index == *index &&
+                    dep.dep_type == dep_type
+                });
+                
+                if !found {
+                    return Err(ValidationError::MissingCellDep {
+                        tx_hash,
+                        index: *index,
+                        dep_type: format!("{:?}", dep_type),
+                    });
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Helper to convert hex string to bytes using ckb-std
+fn hex_to_bytes(hex: &str) -> Result<[u8; 32], ValidationError> {
+    use ckb_std::high_level::decode_hex;
+    
+    let hex = hex.trim_start_matches("0x");
+    
+    // Convert to CString for ckb-std decode_hex
+    let hex_cstr = ffi::CString::new(hex)
+        .map_err(|_| ValidationError::CustomValidation("Invalid hex string: contains null bytes".to_string()))?;
+    
+    let decoded = decode_hex(&hex_cstr)
+        .map_err(|_| ValidationError::CustomValidation("Failed to decode hex string".to_string()))?;
+    
+    if decoded.len() != 32 {
+        return Err(ValidationError::CustomValidation(
+            format!("Invalid hash length: expected 32 bytes, got {}", decoded.len())
+        ));
+    }
+    
+    let mut result = [0u8; 32];
+    result.copy_from_slice(&decoded);
+    Ok(result)
 }
 
 
@@ -319,10 +492,22 @@ impl ValidationRegistry {
         input_cells: &ClassifiedCells,
         output_cells: &ClassifiedCells,
     ) -> Result<(), ValidationError> {
+        self.validate_with_deps(recipe, input_cells, output_cells, &[], &[])
+    }
+    
+    /// Validate a transaction with dependencies
+    pub fn validate_with_deps(
+        &self,
+        recipe: &TransactionRecipe,
+        input_cells: &ClassifiedCells,
+        output_cells: &ClassifiedCells,
+        cell_deps: &[CellDepInfo],
+        header_deps: &[[u8; 32]],
+    ) -> Result<(), ValidationError> {
         let method_path = recipe.method_path_bytes();
         
         if let Some(rules) = self.get(&method_path) {
-            rules.validate(recipe, input_cells, output_cells)
+            rules.validate_with_deps(recipe, input_cells, output_cells, cell_deps, header_deps)
         } else {
             // No rules registered for this method - could be OK or error depending on policy
             Ok(())

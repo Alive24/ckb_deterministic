@@ -9,6 +9,8 @@ use ckb_deterministic::{
     assertions::*,
     validate_all,
     validation_block,
+    transaction_deps::CellDepInfo,
+    known_scripts::{KnownScript, Network},
 };
 
 /// Validates open vault transaction using Jest-like assertions
@@ -16,6 +18,8 @@ pub fn validate_open_vault_transaction(
     recipe: &TransactionRecipe,
     input_cells: &ClassifiedCells,
     output_cells: &ClassifiedCells,
+    cell_deps: &[CellDepInfo],
+    header_deps: &[[u8; 32]],
 ) -> Result<(), String> {
     // Validate transaction structure
     validate_all! {
@@ -48,6 +52,15 @@ pub fn validate_open_vault_transaction(
             }
             Ok(())
         }),
+        // Example: Validate time-based logic using header dependencies
+        validation_block!("Time validation", {
+            // Ensure we have a recent block header for time checks
+            if header_deps.is_empty() {
+                return Err("No header dependencies provided for time validation".to_string());
+            }
+            // In a real implementation, we would load the header and check timestamp
+            Ok(())
+        }),
     }?;
 
     // Validate xUDT input cells
@@ -56,6 +69,13 @@ pub fn validate_open_vault_transaction(
             .ok_or("No xUDT input cells found")?;
         
         expect(xudt_cells).not_to_be_empty()?;
+        
+        // Example: Ensure xUDT dependencies are present
+        // The framework will auto-validate this if auto_validate_known_scripts is enabled,
+        // but we can also manually check in custom validators
+        expect_deps(cell_deps)
+            .to_have_deps_for_script(KnownScript::XUdt, Network::Mainnet)
+            .map_err(|e| format!("xUDT dependencies missing: {}", e))?;
         
         // Validate each xUDT cell
         let mut expected_udt_type_id: Option<Vec<u8>> = None;
@@ -127,6 +147,8 @@ pub fn validate_close_vault_transaction(
     recipe: &TransactionRecipe,
     input_cells: &ClassifiedCells,
     output_cells: &ClassifiedCells,
+    cell_deps: &[CellDepInfo],
+    _header_deps: &[[u8; 32]],
 ) -> Result<(), String> {
     // Validate transaction structure
     validate_all! {
@@ -140,6 +162,16 @@ pub fn validate_close_vault_transaction(
     let vault_id = expect_u64_argument(&args[0], "Vault ID")?;
     
     expect(vault_id).to_be_greater_than(0u64)?;
+    
+    // Example: Check for required CDP oracle dependency when closing vault
+    // This ensures we have access to current collateral prices
+    validation_block!("Oracle dependency check", {
+        let oracle_dep_hash = [100u8; 32]; // CDP oracle dependency
+        expect_deps(cell_deps)
+            .to_have_cell_dep(&oracle_dep_hash, 0)
+            .map_err(|_| "CDP oracle dependency required for vault closure".to_string())?;
+        Ok(())
+    })?;
 
     // Validate vault input
     validation_block!("Vault input validation", {
@@ -217,6 +249,8 @@ pub fn validate_update_vault_transaction(
     recipe: &TransactionRecipe,
     input_cells: &ClassifiedCells,
     output_cells: &ClassifiedCells,
+    _cell_deps: &[CellDepInfo],
+    _header_deps: &[[u8; 32]],
 ) -> Result<(), String> {
     // Validate transaction structure
     validate_all! {
@@ -290,3 +324,27 @@ pub fn validate_update_vault_transaction(
     Ok(())
 }
 
+
+/// Example: Validates that a transaction has proper dependencies
+/// This would typically be called from a custom dep_validator
+pub fn validate_transaction_dependencies(
+    cell_deps: &[CellDepInfo],
+    header_deps: &[[u8; 32]],
+) -> Result<(), String> {
+    // Example: Ensure xUDT dependencies are present for mainnet
+    validate_all! {
+        expect_deps(cell_deps)
+            .to_have_deps_for_script(KnownScript::XUdt, Network::Mainnet),
+        
+        // Example: Check for a specific CDP oracle dependency
+        expect_deps(cell_deps)
+            .to_have_cell_dep(&[100u8; 32], 0),
+        
+        // Example: Ensure we have at least one header dependency for time validation
+        expect_headers(header_deps)
+            .to_have_count(1)
+            .map_err(|_| "At least one header dependency required for time validation".to_string()),
+    }?;
+    
+    Ok(())
+}

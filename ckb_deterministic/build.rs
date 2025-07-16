@@ -2,6 +2,10 @@ use std::process::Command;
 use std::fs;
 
 fn main() {
+    // Declare custom cfg attributes to avoid "unexpected cfg" warnings
+    println!("cargo:rustc-check-cfg=cfg(feature, values(\"native-simulator\"))");
+    println!("cargo:rustc-check-cfg=cfg(feature, values(\"library\"))");
+    
     let output = Command::new("sh")
         .arg("-c")
         .arg("cd ../ && moleculec --language rust --schema-file schemas/deterministic.mol")

@@ -10,4 +10,5 @@ pub mod recipes;
 pub mod generated;
 pub mod transaction_recipe;
 pub mod transaction_context;
+pub mod transaction_deps;
 pub mod validation;

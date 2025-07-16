@@ -1,10 +1,32 @@
 // Generic Transaction Recipe Schema for SSRI
 
+array Uint32 [byte; 4];
+array Byte32 [byte; 32];
+
 vector Bytes <byte>;
 vector BytesVec <Bytes>;
+vector Byte32Vec <Byte32>;
+
+// OutPoint structure for referencing cells
+struct OutPoint {
+    tx_hash: Byte32,
+    index: Uint32,
+}
+
+// Cell dependency with type
+struct CellDep {
+    out_point: OutPoint,
+    dep_type: byte,               // 0 = code, 1 = dep_group
+}
+
+vector CellDepVec <CellDep>;
+option CellDepVecOpt (CellDepVec);
+option Byte32VecOpt (Byte32Vec);
 
 // Transaction Recipe Schema for SSRI - Generic for all CKB projects
 table TransactionRecipe {
     method_path: Bytes,           // The method path (e.g., "UDT.transfer", "AMM.swap")
     arguments: BytesVec,          // Encoded arguments for the method
+    cell_deps: CellDepVecOpt,     // Optional cell dependencies
+    header_deps: Byte32VecOpt,    // Optional header dependencies
 }
