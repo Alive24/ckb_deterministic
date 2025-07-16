@@ -4,6 +4,7 @@
 /// for different transaction types based on their method paths.
 
 use crate::cell_classifier::ClassifiedCells;
+use crate::errors::ValidationError;
 use crate::generated::TransactionRecipe;
 use crate::transaction_recipe::TransactionRecipeExt;
 extern crate alloc;
@@ -287,34 +288,6 @@ impl TransactionValidationRules {
     }
 }
 
-/// Validation error types
-#[derive(Debug, Clone)]
-pub enum ValidationError {
-    /// Wrong method path
-    WrongMethodPath {
-        expected: Vec<u8>,
-        actual: Vec<u8>,
-    },
-    /// Invalid argument count
-    InvalidArgumentCount {
-        expected: usize,
-        actual: usize,
-    },
-    /// Cell count constraint violation
-    CellCountViolation {
-        cell_type: Vec<u8>,
-        is_input: bool,
-        expected: String,
-        actual: usize,
-    },
-    /// Unidentified cells present when not allowed
-    UnidentifiedCells {
-        is_input: bool,
-        count: usize,
-    },
-    /// Custom validation failed
-    CustomValidation(String),
-}
 
 /// Registry for transaction validation rules
 pub struct ValidationRegistry {

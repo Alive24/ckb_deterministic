@@ -1,5 +1,6 @@
 #![no_std]
 
+pub mod assertions;
 pub mod cell;
 pub mod cell_classifier;
 pub mod errors;

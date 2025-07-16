@@ -1,3 +1,6 @@
+extern crate alloc;
+use alloc::{string::String, vec::Vec};
+
 /// Errors for the ckb_deterministic library
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error {
@@ -9,6 +12,43 @@ pub enum Error {
     RecipeError,
     /// General CKB system error
     SystemError(i8),
+    /// Validation error from the validation framework
+    ValidationError(ValidationError),
+}
+
+/// Validation error types
+#[derive(Debug, Clone, PartialEq)]
+pub enum ValidationError {
+    /// Wrong method path
+    WrongMethodPath {
+        expected: Vec<u8>,
+        actual: Vec<u8>,
+    },
+    /// Invalid argument count
+    InvalidArgumentCount {
+        expected: usize,
+        actual: usize,
+    },
+    /// Cell count constraint violation
+    CellCountViolation {
+        cell_type: Vec<u8>,
+        is_input: bool,
+        expected: String,
+        actual: usize,
+    },
+    /// Unidentified cells found when not allowed
+    UnidentifiedCells {
+        is_input: bool,
+        count: usize,
+    },
+    /// Custom validation error with message
+    CustomValidation(String),
+}
+
+impl From<ValidationError> for Error {
+    fn from(err: ValidationError) -> Self {
+        Error::ValidationError(err)
+    }
 }
 
 impl From<ckb_std::error::SysError> for Error {

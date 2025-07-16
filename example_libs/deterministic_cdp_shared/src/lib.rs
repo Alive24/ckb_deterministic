@@ -8,6 +8,8 @@ pub mod types;
 pub mod transaction_recipe;
 pub mod cell_collector;
 pub mod transaction_context;
+pub mod validators;
+pub mod validator_example;
 
 // Re-export error types at crate root
 pub use error::*;

@@ -671,7 +671,7 @@ fn get_testnet_script_info(script: KnownScript) -> Option<ScriptInfo> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cell_classifier::{CellInfo, CellClassifier, ClassificationRule, create_universal_classifier};
+    use crate::cell_classifier::{create_universal_classifier, simple_ckb_cell_class, CellClassifier, CellInfo, ClassificationRule, RuleBasedClassifier};
     use ckb_std::ckb_constants::Source;
     use ckb_std::ckb_types::packed::Script;
 
