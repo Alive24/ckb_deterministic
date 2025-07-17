@@ -10,7 +10,6 @@ library = []
 [[bin]]
 name = "deterministic_cdp_project"
 path = "src/main.rs"
-required-features = ["binary"]
 
 [dependencies]
 ckb-std = { version = "0.16.4", default-features = false, features = ["allocator", "ckb-types", "dummy-atomic"] }

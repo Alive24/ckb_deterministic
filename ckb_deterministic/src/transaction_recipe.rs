@@ -1,3 +1,4 @@
+use crate::cell_classifier::CellClassifier;
 /// Transaction recipe implementation based on generated TransactionRecipe
 /// 
 /// This module provides functionality for working with transaction recipes
@@ -10,6 +11,7 @@ use crate::generated::{
     TransactionRecipe, Bytes, BytesVec, CellDep, CellDepVec, CellDepVecOpt,
     Byte32, Byte32Vec, Byte32VecOpt, OutPoint, Uint32
 };
+use crate::transaction_context::TransactionContext;
 use ckb_std::{high_level, ckb_constants::Source};
 use ckb_hash::blake2b_256;
 extern crate alloc;
@@ -49,6 +51,10 @@ pub trait TransactionRecipeExt {
     
     /// Get method path as raw bytes
     fn method_path_bytes(&self) -> Vec<u8>;
+}
+
+pub trait Validate {
+    fn validate(&self, context: &TransactionContext<impl CellClassifier>) -> Result<(), Error>;
 }
 
 impl TransactionRecipeExt for TransactionRecipe {

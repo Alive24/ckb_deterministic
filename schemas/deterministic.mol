@@ -25,7 +25,7 @@ option Byte32VecOpt (Byte32Vec);
 
 // Transaction Recipe Schema for SSRI - Generic for all CKB projects
 table TransactionRecipe {
-    method_path: Bytes,           // The method path (e.g., "UDT.transfer", "AMM.swap")
+    method_path: Bytes,           // The method path (e.g., b"UDT.transfer", b"AMM.swap")
     arguments: BytesVec,          // Encoded arguments for the method
     cell_deps: CellDepVecOpt,     // Optional cell dependencies
     header_deps: Byte32VecOpt,    // Optional header dependencies

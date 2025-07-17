@@ -1,30 +1,60 @@
 # CKB Deterministic
 
-A comprehensive framework for building deterministic CKB smart contracts with unified transaction recipe handling, automatic cell classification, Jest-like assertions, and project-agnostic transaction contexts.
+A comprehensive framework for building deterministic CKB smart contracts with unified transaction recipe handling, automatic cell classification, Jest-like assertions, dependency validation, and project-agnostic transaction contexts.
 
 ## Overview
 
 CKB Deterministic provides a standardized approach to:
 
 - **Unified Transaction Recipes**: Single TransactionRecipe type generated from Molecule schema with extension traits for additional functionality
-- **Automatic Cell Classification**: Rule-based cell classification system for organizing transaction inputs/outputs by type hash
-- **Transaction Context**: Complete transaction contexts that include parsed recipes and classified cells
-- **Jest-like Assertions**: Familiar assertion API for writing readable validation logic
-- **Validation Framework**: Two-phase validation with structural rules and custom validators
+- **Universal Cell Classification**: Automatic classification system with SimpleCKB as default for cells without type scripts
+- **Transaction Context**: Complete transaction contexts that include parsed recipes, classified cells, and dependency validation
+- **Jest-like Assertions**: Familiar assertion API that returns proper Error types instead of String messages
+- **Enhanced Validation Framework**: ValidationPredicate functions receive full TransactionContext for comprehensive validation
+- **Known Scripts Registry**: Built-in support for 22+ known CKB ecosystem scripts
+- **Dependency Management**: Automatic validation of required cell and header dependencies
 - **SSRI Support**: Script-to-Script Remote Invocation pattern implementation
+- **Direct Recipe Validation**: Validation rules check method paths internally without external matching
 - **Project Flexibility**: Generic, reusable components that can be specialized for any CKB project
 
 ## Features
 
 - ✅ **Unified TransactionRecipe**: Single source of truth for transaction recipes using generated Molecule types
-- ✅ **Cell Classification**: Automatic classification of cells into known, custom, and unidentified categories
-- ✅ **Transaction Context**: Complete transaction state with recipe parsing and cell collection
+- ✅ **Universal Cell Classification**: Automatic SimpleCKB classification for basic cells, with rule-based system for custom types
+- ✅ **Transaction Context**: Complete transaction state with recipe parsing, cell collection, and dependency tracking
 - ✅ **Jest-like Assertions**: expect() API with comprehensive matchers for validation
-- ✅ **Validation Registry**: Declarative validation rules with automatic enforcement
-- ✅ **Method Path Hashing**: Blake2b-256 hash-based method identification (first 8 bytes as u64)
-- ✅ **Detailed Error Codes**: Specific i8 error codes for different validation failures
+- ✅ **Validation Framework**: Declarative validation rules with automatic enforcement
+- ✅ **Dependency Validation**: Automatic validation of cell deps and header deps, including dep groups
+- ✅ **Known Scripts Support**: Pre-configured support for xUDT, Spore, DAO, and 19+ other ecosystem scripts
+- ✅ **Direct Recipe Validation**: Recipe-based validation without external method path matching
+- ✅ **Error Propagation**: Proper error handling throughout the classification and validation pipeline
+- ✅ **Detailed Error Codes**: Specific i8 error codes with #[repr(i8)] for direct casting
 - ✅ **Extension Traits**: Add functionality to generated types without modification
+- ✅ **Network Awareness**: Mainnet/testnet configuration for known scripts
 - ✅ **Debugging Support**: Built-in debug logging for transaction analysis
+
+## Architecture
+
+The framework follows a modular architecture with clear separation of concerns:
+
+- **Core Library (`ckb_deterministic`)**: Generic, reusable components for any CKB project
+  - Cell classification framework
+  - Transaction context and recipe handling
+  - Validation framework with dependency support
+  - Jest-like assertions
+  - Known scripts registry
+  
+- **Project-Specific Libraries**: Implement domain-specific logic
+  - Custom cell types and classification rules
+  - Business-specific validation logic
+  - Domain types and constants
+  - Error mapping
+
+- **Smart Contracts**: Use the framework for transaction validation
+  - Import core library and project-specific library
+  - Create transaction context with classification
+  - Apply validation rules
+  - Execute business logic
 
 ## Installation
 
@@ -33,472 +63,326 @@ Add to your `Cargo.toml`:
 ```toml
 [dependencies]
 ckb_deterministic = { path = "../path/to/ckb_deterministic" }
-ckb-std = "0.16"
 ```
 
 ## Quick Start
 
-### 1. Basic Transaction Recipe Usage
+### 1. Cell Classification
 
-```rust
-use ckb_deterministic::transaction_recipe::{
-    parse_transaction_recipe, 
-    create_transaction_recipe,
-    TransactionRecipeExt
-};
-
-// Parse recipe from witness
-let recipe = parse_transaction_recipe()?.unwrap();
-
-// Access recipe data using extension trait
-let method_path_hash = recipe.method_path_hash()?;
-let method_name = recipe.method_path_name()?;
-let arguments = recipe.arguments_vec();
-
-// Create new recipe
-let new_recipe = create_transaction_recipe("UDT.transfer", &[
-    b"recipient_address".to_vec(),
-    1000u64.to_le_bytes().to_vec()
-])?;
-```
-
-### 2. Cell Classification
+The framework provides a universal cell classification system that automatically identifies SimpleCKB cells (cells without type scripts) and allows custom classification rules:
 
 ```rust
 use ckb_deterministic::cell_classifier::{
-    RuleBasedClassifier, 
-    CellCollector, 
-    CellClass
+    CellClass, ClassificationRule, RuleBasedClassifier, CellCollector
 };
+use ckb_deterministic::known_scripts::KnownScript;
 
-// Create classifier with type hash rules
-let classifier = RuleBasedClassifier::new("MyProject")
-    .add_type_hash([1u8; 32], CellClass::known("udt"))
-    .add_type_hash([2u8; 32], CellClass::custom("vault"))
-    .add_type_hash([3u8; 32], CellClass::custom("amm_pool"));
+// Create a classifier - SimpleCKB cells are automatically recognized
+let classifier = RuleBasedClassifier::new("MyClassifier")
+    // Add known scripts like xUDT
+    .add_known_script(KnownScript::XUdt, KnownScript::XUdt.cell_class())
+    // Add custom cells by type code hash
+    .add_rule(ClassificationRule::TypeCodeHash {
+        code_hash: my_custom_type_hash,
+        class: CellClass::custom("my_custom_cell"),
+    });
 
-// Collect and classify cells
-let collector = CellCollector::new(classifier);
-let (input_cells, output_cells) = collector.collect_inputs_and_outputs()?;
-
-// Access classified cells
-let udt_inputs = &input_cells.known_cells[b"udt".as_slice()];
-let vault_outputs = &output_cells.custom_cells[b"vault".as_slice()];
-let unidentified = &input_cells.unidentified_cells;
-```
-
-### 3. Complete Transaction Context
-
-```rust
-use ckb_deterministic::transaction_context::{
-    TransactionContext,
-    create_transaction_context
-};
-
-// Create complete transaction context
-let context = create_transaction_context(collector)?;
-
-// Access all transaction data
-println!("Method: {}", context.method_path_name);
-println!("Hash: {}", context.method_path_hash);
-println!("Arguments: {:?}", context.arguments);
-println!("Input cells: {}", context.input_cells.total_cell_count());
-println!("Output cells: {}", context.output_cells.total_cell_count());
-
-// Validate transaction
-context.validate()?;
-```
-
-### 4. Jest-like Assertions
-
-```rust
-use ckb_deterministic::assertions::*;
-use ckb_deterministic::{validate_all, validation_block};
-
-// Basic assertions
-expect(value).to_equal(expected)?;
-expect(value).to_be_greater_than(10)?;
-expect(collection).not_to_be_empty()?;
-
-// Transaction-specific assertions
-expect_transaction(recipe).to_have_method_path(b"CDP.openVault")?;
-expect_transaction(recipe).to_have_arguments_count(2)?;
-expect_cells(input_cells).to_have_custom_cells_count(b"vault", 1)?;
-
-// Combine multiple validations
-validate_all! {
-    expect(collateral_amount).to_be_greater_than(0u128),
-    expect_transaction(recipe).to_have_method_path(b"CDP.openVault"),
-    validation_block!("Collateral ratio check", {
-        let ratio = collateral_amount * 100 / debt_amount;
-        expect(ratio).to_be_greater_than_or_equal(150)
-    }),
-}?;
-```
-
-### 5. Validation Framework
-
-```rust
-use ckb_deterministic::validation::{
-    ValidationRegistry,
-    TransactionValidationRules,
-    CellCountConstraint,
-};
-
-// Create validation registry
-let mut registry = ValidationRegistry::new();
-
-// Register validation rules for a method
-registry.register(
-    TransactionValidationRules::new(b"CDP.openVault")
-        .with_argument_count(2)
-        .with_cell_constraint(b"xudt", 
-            CellCountConstraint::at_least(1),  // input
-            CellCountConstraint::any()         // output
-        )
-        .with_cell_constraint(b"vault",
-            CellCountConstraint::exactly(0),   // input
-            CellCountConstraint::exactly(1)    // output
-        )
-        // Enable automatic known script dependency validation
-        .with_auto_known_script_validation()
-        // Add required dependencies
-        .with_required_cell_dep(oracle_dep, 0, DepType::Code)
-        .with_required_header_dep(recent_block_hash)
-        // Custom validator now receives deps
-        .with_custom_validator(validate_open_vault_transaction)
-);
-
-// Validate transaction with dependencies
-registry.validate_with_deps(
-    &recipe, 
-    &input_cells, 
-    &output_cells,
-    &cell_deps,
-    &header_deps
-)?;
-```
-
-## Architecture
-
-### Core Components
-
-1. **TransactionRecipe** (generated): Core Molecule-generated type for SSRI recipes
-2. **TransactionRecipeExt** (trait): Extension methods for TransactionRecipe
-3. **CellClassifier** (trait): Interface for cell classification logic
-4. **CellCollector**: Collects and classifies transaction cells
-5. **TransactionContext**: Complete transaction state container
-6. **Assertions Module**: Jest-like assertion API for readable validation logic
-7. **ValidationRegistry**: Declarative validation rules with automatic enforcement
-
-### Design Patterns
-
-#### Extension Trait Pattern
-```rust
-// Generated type stays untouched
-pub struct TransactionRecipe(molecule::bytes::Bytes);
-
-// Extension trait adds functionality
-pub trait TransactionRecipeExt {
-    fn method_path_hash(&self) -> Result<u64, Error>;
-    fn method_path_name(&self) -> Result<String, Error>;
-    fn arguments_vec(&self) -> Vec<Vec<u8>>;
-}
-
-impl TransactionRecipeExt for TransactionRecipe {
-    // Implementation details...
-}
-```
-
-#### Rule-Based Classification
-```rust
-let classifier = RuleBasedClassifier::new("ProjectName")
-    .add_type_hash(KNOWN_TYPE_HASH, CellClass::known("label"))
-    .add_type_hash(CUSTOM_TYPE_HASH, CellClass::custom("label"));
-```
-
-#### Method Path Hashing
-```rust
-use ckb_deterministic::transaction_recipe::method_path;
-
-// Convert method name to hash for efficient comparison
-let transfer_hash = method_path("UDT.transfer");
-let mint_hash = method_path("UDT.mint");
-
-match context.method_path_hash {
-    hash if hash == transfer_hash => process_transfer(),
-    hash if hash == mint_hash => process_mint(),
-    _ => return Err(Error::RecipeError),
-}
-```
-
-## Examples
-
-### Project-Specific Implementation
-
-See the complete example in `example_libs/deterministic_cdp/`:
-
-```rust
-/// CDP-specific wrapper
-pub struct DeterministicCDP {
-    vault_type_hash: [u8; 32],
-    collateral_type_hash: [u8; 32],
-    debt_type_hash: [u8; 32],
-}
-
-impl DeterministicCDP {
-    pub fn create_classifier(&self) -> RuleBasedClassifier {
-        RuleBasedClassifier::new("CDP")
-            .add_type_hash(self.vault_type_hash, CellClass::custom("vault"))
-            .add_type_hash(self.collateral_type_hash, CellClass::custom("collateral"))
-            .add_type_hash(self.debt_type_hash, CellClass::custom("debt"))
-    }
-    
-    pub fn process_transaction<C>(&self, context: &TransactionContext<C>) -> Result<(), Error>
-    where
-        C: CellClassifier,
-    {
-        let open_vault_hash = method_path("CDP.openVault");
-        let close_vault_hash = method_path("CDP.closeVault");
-        
-        match context.method_path_hash {
-            hash if hash == open_vault_hash => self.process_open_vault(context),
-            hash if hash == close_vault_hash => self.process_close_vault(context),
-            _ => Err(Error::RecipeError),
-        }
-    }
-}
-```
-
-### Contract Implementation
-
-See the complete example in `example_contracts/deterministic_cdp_project/`:
-
-```rust
-pub fn main() -> Result<(), Error> {
-    // Step 1: Create transaction context with CDP-specific classifier
-    let context = create_cdp_transaction_context()?;
-    
-    // Step 2: Create validation registry with rules
-    let registry = create_cdp_validation_registry();
-    
-    // Step 3: Validate transaction structure and constraints
-    // Returns specific error codes: 41-46 for different validation failures
-    registry.validate(&context.recipe, &context.input_cells, &context.output_cells)
-        .map_err(|e| Error::from(e))?;
-    
-    // Step 4: Process transaction with business logic
-    let cdp_project = CDPProject::new();
-    cdp_project.process_transaction(&context)?;
-    
-    Ok(())
-}
-```
-
-### Using Jest-like Assertions in Validators
-
-```rust
-use ckb_deterministic::{validate_all, validation_block, assertions::*};
-
-pub fn validate_open_vault_transaction(
-    recipe: &TransactionRecipe,
-    input_cells: &ClassifiedCells,
-    output_cells: &ClassifiedCells,
-    cell_deps: &[CellDepInfo],
-    header_deps: &[[u8; 32]],
-) -> Result<(), String> {
-    // Validate transaction structure
-    validate_all! {
-        expect_transaction(recipe).to_have_method_path(b"CDP.openVault"),
-        expect_transaction(recipe).to_have_arguments_count(2),
-    }?;
-    
-    // Parse and validate arguments
-    let args = recipe.arguments_vec();
-    let collateral_amount = expect_u128_argument(&args[0], "Collateral amount")?;
-    let debt_amount = expect_u128_argument(&args[1], "Debt amount")?;
-    
-    // Business logic validations
-    validate_all! {
-        expect(collateral_amount)
-            .to_be_greater_than(0u128)
-            .map_err(|_| "Collateral amount must be greater than zero".to_string()),
-        validation_block!("Collateral ratio check", {
-            if debt_amount > 0 {
-                let minimum_collateral = debt_amount.saturating_mul(3).saturating_div(2);
-                expect(collateral_amount)
-                    .to_be_greater_than_or_equal(minimum_collateral)
-                    .map_err(|_| format!(
-                        "Insufficient collateral ratio: need {} but got {}", 
-                        minimum_collateral, collateral_amount
-                    ))?;
-            }
-            Ok(())
-        }),
-        // Validate dependencies
-        validation_block!("Dependency validation", {
-            // Check xUDT dependencies are present
-            expect_deps(cell_deps)
-                .to_have_deps_for_script(KnownScript::XUdt, Network::Mainnet)?;
-            // Check time validation header
-            expect_headers(header_deps)
-                .to_have_count(1)
-                .map_err(|_| "Header dependency required for time validation".to_string())?;
-            Ok(())
-        }),
-    }?;
-    
-    Ok(())
-}
-```
-
-## Method Path Conventions
-
-Please use dot notation as in SSRI protocol: `UDT.transfer`, `AMM.swapExactTokensForTokens`
-
-Each method path is hashed using Blake2b-256, with the first 8 bytes used as a u64 identifier for efficient matching.
-
-## Error Handling
-
-CKB Deterministic provides detailed error codes for different validation failures:
-
-```rust
-use ckb_deterministic::errors::{Error, ValidationError};
-
-// Framework returns specific ValidationError variants
-match validation_result {
-    Err(ValidationError::WrongMethodPath { .. }) => {}, // Wrong method called
-    Err(ValidationError::InvalidArgumentCount { .. }) => {}, // Wrong arg count
-    Err(ValidationError::CellCountViolation { .. }) => {}, // Cell count mismatch
-    Err(ValidationError::UnidentifiedCells { .. }) => {}, // Unknown cells
-    Err(ValidationError::CustomValidation(_)) => {}, // Business logic failed
-    Ok(()) => {},
-}
-
-// Automatic conversion to specific i8 error codes
-#[repr(i8)]
-pub enum Error {
-    // Business logic errors (1-20)
-    InvalidArguments = 1,
-    UnderCollateralized = 4,
-    
-    // Validation errors (41-60)
-    WrongMethodPath = 41,          // Called unknown method
-    InvalidArgumentCount = 42,      // Wrong number of arguments
-    MissingRequiredCells = 43,     // Required input cells not found
-    TooManyCells = 44,             // Too many output cells
-    CustomValidationFailed = 46,   // Business rule failed
-    
-    // System errors (61-80)
-    IndexOutOfBound = 62,
-    ItemMissing = 63,
-}
-
-// Proper error propagation in contracts
-registry.validate(&context.recipe, &context.input_cells, &context.output_cells)
-    .map_err(|e| Error::from(e))?;  // Converts to specific error codes
-```
-
-## Cell Classification
-
-### Cell Classes
-
-- **Known**: Standard CKB cell types (like UDT, DAO, etc.)
-- **Custom**: Project-specific cell types
-- **Unidentified**: Cells that don't match any classification rules
-
-### Strict Mode
-
-```rust
+// Create collector with the classifier
 let collector = CellCollector::new(classifier)
     .with_strict_mode(true); // Reject transactions with unidentified cells
 
-let context = create_transaction_context(collector)?; // Fails if unidentified cells found
+// Collect and classify cells - errors are properly propagated
+let (inputs, outputs) = collector.collect_inputs_and_outputs()?;
 ```
 
-## Example: Integration with CKBoost
-
-CKB Deterministic is designed to integrate seamlessly with CKBoost and other CKB projects:
+### 2. Transaction Context with Automatic Classification
 
 ```rust
-// CKBoost-specific wrapper
-pub struct CKBoostTransactionContext {
-    inner: TransactionContext<RuleBasedClassifier>,
-    recipe: CKBoostTransactionRecipe,
-    // ... CKBoost-specific fields
+use ckb_deterministic::transaction_context::TransactionContext;
+
+// Create transaction context with automatic cell classification
+let context = TransactionContext::new(collector)?;
+
+// Access classified cells
+let simple_ckb_cells = context.inputs.get_simple_ckb();
+let xudt_cells = context.inputs.get_known("xudt");
+let custom_cells = context.inputs.get_custom("my_custom_cell");
+
+// Check for unidentified cells
+if context.inputs.has_unidentified_cells() {
+    return Err(Error::UnidentifiedCells);
+}
+```
+
+### 3. Error Handling
+
+All errors use `#[repr(i8)]` for elegant error code handling:
+
+```rust
+#[repr(i8)]
+#[derive(Debug, PartialEq, Clone)]
+pub enum Error {
+    // CKB System Errors
+    IndexOutOfBound = 1,
+    ItemMissing = 2,
+    LengthNotEnough = 3,
+    Encoding = 4,
+    
+    // Classification Errors
+    UnidentifiedCells = 21,
+    InvalidCodeHash = 23,
+    
+    // Validation Errors
+    WrongMethodPath = 30,
+    InvalidArgumentCount = 31,
+    CellCountViolation = 32,
+    CellRelationshipRuleViolation = 33,
+    BusinessRuleViolation = 34,
+    ExpectationViolation = 39,
+    
+    // Unknown error
+    Unknown = -1,
 }
 
-// Uses CKB Deterministic internally
-impl CKBoostTransactionContext {
-    pub fn new(collector: CKBoostCellCollector) -> Result<Self, Error> {
-        let generic_context = TransactionContext::new(collector.into_generic())?;
-        // ... wrap with CKBoost-specific functionality
+// Errors can be directly cast to i8
+fn main() -> i8 {
+    match run() {
+        Ok(_) => 0,
+        Err(e) => e as i8,  // Direct cast, no helper method needed
     }
 }
 ```
 
-## Assertion API Reference
+### 4. Known Scripts Support
 
-### Basic Matchers
-- `expect(value).to_equal(expected)` - Exact equality
-- `expect(value).to_be_greater_than(threshold)` - Greater than comparison
-- `expect(value).to_be_greater_than_or_equal(threshold)` - Greater or equal
-- `expect(value).to_be_less_than(threshold)` - Less than comparison
-- `expect(value).to_be_less_than_or_equal(threshold)` - Less or equal
-- `expect(value).to_be_true()` / `to_be_false()` - Boolean assertions
-- `expect(collection).to_be_empty()` / `not_to_be_empty()` - Collection checks
-- `expect(collection).to_have_length(n)` - Length assertions
-- `expect(collection).to_contain(&item)` - Membership check
+The framework includes pre-configured support for 22+ known CKB ecosystem scripts:
 
-### Transaction-Specific Matchers
-- `expect_transaction(recipe).to_have_method_path(path)` - Method path validation
-- `expect_transaction(recipe).to_have_arguments_count(n)` - Argument count check
-- `expect_transaction(recipe).to_have_argument_with_length(index, length)` - Arg length
-- `expect_cells(cells).to_have_known_cells(label)` - Known cell presence
-- `expect_cells(cells).to_have_custom_cells(label)` - Custom cell presence
-- `expect_cells(cells).to_have_custom_cells_count(label, n)` - Exact cell count
+```rust
+use ckb_deterministic::known_scripts::KnownScript;
 
-### Macros
-- `validate_all!` - Run multiple validations, short-circuiting on first error
-- `validation_block!` - Group related validations with a descriptive name
+// Available known scripts include:
+// - SimpleCKB (default for cells without type scripts)
+// - xUDT, Spore, SporeCluster, SporeExtension
+// - CKB DAO, Nervos DAO
+// - CoTA, CoTARegistry, CoTAExtension
+// - mNFT, TypeID, Unique Type
+// - JoyID related scripts
+// - RGBpp scripts
+// - And more...
 
-## Development Workflow
+// Add known scripts to your classifier
+let classifier = RuleBasedClassifier::new("MyClassifier")
+    .add_known_script(KnownScript::XUdt, KnownScript::XUdt.cell_class())
+    .add_known_script(KnownScript::Dao, KnownScript::Dao.cell_class());
 
-1. **Define Method Paths**: Create constants for your project's SSRI methods
-2. **Create Classifier**: Define type hash rules for your cell types
-3. **Setup Validation Rules**: Register structural constraints with ValidationRegistry
-4. **Write Custom Validators**: Use Jest-like assertions for business logic
-5. **Implement Processing**: Handle different method paths in your contract
-6. **Add Tests**: Verify behavior with different transaction patterns
-7. **Optimize**: Use method path hashing for efficient dispatch
+// Known scripts include network-specific configurations
+let xudt_info = KnownScript::XUdt.info(Network::Mainnet);
+println!("xUDT code hash: {:?}", xudt_info.code_hash);
+```
 
-## Testing
+### 5. Comprehensive Validation Framework
 
-Run the test suite:
+The framework provides flexible validation rules with enhanced ValidationPredicate that receives full TransactionContext:
+
+```rust
+use ckb_deterministic::validation::{TransactionValidationRules, CellCountConstraint};
+use ckb_deterministic::transaction_deps::{CellDepInfo, OutPointInfo};
+
+// Define comprehensive validation rules
+let rules = TransactionValidationRules::new(b"openVault".to_vec())
+    // Argument validation
+    .with_arguments(2)
+    
+    // Cell count constraints
+    .with_simple_ckb(
+        CellCountConstraint::exactly(1),  // Input constraint
+        CellCountConstraint::at_most(1),  // Output constraint
+    )
+    .with_custom_cell(
+        "vault",
+        CellCountConstraint::exactly(0),  // No vault inputs
+        CellCountConstraint::exactly(1),  // One vault output
+    )
+    
+    // Cell relationship rules with full context access
+    .with_cell_relationship(
+        "validate_lock_consistency".to_string(),
+        "Ensure lock scripts remain consistent".to_string(),
+        vec!["vault".to_string()],
+        |context| {
+            // Access full transaction context
+            let inputs = context.input_cells.get_known("vault");
+            let outputs = context.output_cells.get_known("vault");
+            // Validate using context.cell_deps, context.header_deps, etc.
+            Ok(())
+        }
+    )
+    
+    // Business logic validation
+    .with_business_rule(
+        "validate_collateral_ratio".to_string(),
+        "Ensure sufficient collateral".to_string(),
+        vec!["vault".to_string(), "xudt".to_string()],
+        validate_collateral_ratio,
+    )
+    
+    // Dependency validation
+    .with_required_cell_deps(vec![vault_script_dep])
+    .with_required_header_deps(vec![price_oracle_block_hash]);
+
+// Apply all validation rules - method path is checked internally
+let result = rules.validate(&context);
+```
+
+### 6. Transaction Recipe with Dependencies
+
+Transaction recipes now support dependency specification:
+
+```rust
+use ckb_deterministic::transaction_recipe::TransactionRecipeExt;
+
+// Create a recipe with dependencies
+let recipe = TransactionRecipe::new_builder()
+    .method_path(method_path_bytes)
+    .arguments(arguments)
+    .cell_deps(cell_deps)      // Optional cell dependencies
+    .header_deps(header_deps)  // Optional header dependencies
+    .build();
+
+// Parse recipe from witness (includes deps)
+let recipe = TransactionRecipe::from_witness(0)?;
+
+// Access dependency information
+let has_deps = recipe.has_cell_deps() || recipe.has_header_deps();
+```
+
+### 7. Jest-like Assertions
+
+The framework provides a familiar assertion API for validation:
+
+```rust
+use ckb_deterministic::assertions::{expect, assert};
+
+// Basic assertions - all return Error instead of String
+expect(actual_value).to_equal(expected_value)?;
+expect(vec.len()).to_be_greater_than(0)?;
+
+// Transaction recipe assertions
+expect_transaction(&context.recipe)
+    .to_have_method_path(b"transfer")?
+    .to_have_arguments_count(3)?;
+
+// Cell assertions
+expect_cells(&context.input_cells)
+    .to_have_known_cells_count("xudt", 2)?
+    .to_have_custom_cells("vault")?;
+
+// Dependency assertions
+expect_deps(&context.cell_deps)
+    .to_have_cell_dep(&tx_hash, index)?
+    .to_have_deps_for_script(KnownScript::XUdt, Network::Mainnet)?;
+
+expect_headers(&context.header_deps)
+    .to_have_header(&oracle_block_hash)?
+    .to_have_count(1)?;
+```
+
+## Complete Example
+
+Here's a complete example showing how to use the framework in a smart contract:
+
+```rust
+use ckb_deterministic::{
+    cell_classifier::{RuleBasedClassifier, CellCollector},
+    transaction_context::TransactionContext,
+    validation::TransactionValidationRules,
+    known_scripts::KnownScript,
+    assertions::expect,
+    errors::Error,
+};
+
+fn main() -> Result<(), Error> {
+    // 1. Set up cell classification
+    let classifier = RuleBasedClassifier::new("CDPValidator")
+        .add_known_script(KnownScript::XUdt, KnownScript::XUdt.cell_class())
+        .add_rule(ClassificationRule::TypeCodeHash {
+            code_hash: VAULT_TYPE_HASH,
+            class: CellClass::custom("vault"),
+        });
+
+    // 2. Create transaction context
+    let collector = CellCollector::new(classifier).with_strict_mode(true);
+    let context = TransactionContext::new(collector)?;
+
+    // 3. Define validation rules for different recipes
+    let open_vault_rules = TransactionValidationRules::new(b"openVault".to_vec())
+        .with_arguments(2)
+        .with_simple_ckb(
+            CellCountConstraint::exactly(1),
+            CellCountConstraint::at_most(1),
+        )
+        .with_custom_cell(
+            "vault",
+            CellCountConstraint::exactly(0),
+            CellCountConstraint::exactly(1),
+        )
+        .with_business_rule(
+            "validate_collateral".to_string(),
+            "Ensure sufficient collateral for vault".to_string(),
+            vec!["xudt".to_string()],
+            |context| {
+                // ValidationPredicate receives full TransactionContext
+                let xudt_cells = context.input_cells.get_known("xudt");
+                // Validate collateral using full context
+                Ok(())
+            }
+        );
+
+    // 4. Try to match and validate - rules check method path internally
+    if open_vault_rules.validate(&context).is_ok() {
+        // Execute business logic for openVault
+        process_open_vault(&context)?;
+    } else {
+        return Err(Error::WrongMethodPath);
+    }
+
+    Ok(())
+}
+```
+
+## Project Structure Example
+
+Here's how a typical project using CKB Deterministic might be structured:
 
 ```bash
-# Test the core library
-cargo test --lib
-
-# Test with example projects
-cargo test --workspace
+my-ckb-project/
+├── contracts/
+│   ├── my-contract/
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │       └── main.rs          # Uses ckb_deterministic for validation
+│   │       └── recipes.rs       # Transaction recipes with validation rules
+│   └── ...
+├── libs/
+│   └── shared-lib/
+│       ├── Cargo.toml
+│       └── src/
+│           ├── lib.rs
+│           ├── cell_classifier.rs   # Project-specific cell types
+│           ├── types.rs             # Domain types and constants
+│           ├── error.rs             # Error mapping
+│           └── validators.rs        # Business validation logic
+│   └── ...
+├── schemas/
+│   └── my-protocol.mol          # Molecule schemas
+└── tests/
+    └── integration_tests.rs     # Test transaction flows
 ```
 
 ## Contributing
 
-CKB Deterministic follows these principles:
-
-- **Project Agnostic**: Core functionality should work for any CKB project
-- **Extension Pattern**: Add functionality through traits, not modification
-- **Generated Types**: Never modify generated Molecule code
-- **Comprehensive Testing**: Cover edge cases and error conditions
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-[Add your license information here]
-
-## Support
-
-For issues and questions:
-- [GitHub Issues](https://github.com/your-org/ckb_deterministic/issues)
-- [Documentation](https://docs.your-domain.com/ckb_deterministic)
+This project is licensed under the MIT License.

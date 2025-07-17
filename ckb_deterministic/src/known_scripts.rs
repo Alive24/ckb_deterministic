@@ -2,9 +2,12 @@
 /// Provides standardized classification for common script types in the CKB ecosystem
 
 use crate::cell_classifier::CellClass;
+use crate::errors::Error;
 extern crate alloc;
 use alloc::vec::Vec;
 use alloc::vec;
+use alloc::ffi::CString;
+use ckb_std::high_level::decode_hex;
 
 /// Known script types in the CKB ecosystem
 /// Simplified for contract-side classification
@@ -82,6 +85,17 @@ impl KnownScript {
             KnownScript::TypeBurnLock => "type_burn_lock",
             KnownScript::EasyToDiscoverType => "easy_to_discover_type",
             KnownScript::TimeLock => "time_lock",
+        }
+    }
+
+    /// Get the code hash for this known script
+    /// Returns the slice representation of the code hash for network-agnostic comparison
+    pub fn code_hash(&self) -> Result<[u8; 32], Error> {
+        // Use mainnet as default for code hash lookup
+        if let Some(script_info) = get_script_info(*self, Network::Mainnet) {
+            script_info.code_hash_in_slice()
+        } else {
+            Err(Error::InvalidCodeHash)
         }
     }
     
@@ -164,6 +178,15 @@ pub struct ScriptInfo {
         u32,          // index
         u8,           // dep_type: 0 = code, 1 = depGroup
     )>,
+}
+
+impl ScriptInfo {
+    pub fn code_hash_in_slice(&self) -> Result<[u8; 32], Error> {
+        decode_hex(&CString::new(self.code_hash).map_err(|_| Error::InvalidCodeHash)?)
+            .map_err(|_| Error::InvalidCodeHash)?
+            .try_into()
+            .map_err(|_| Error::InvalidCodeHash)
+    }
 }
 
 /// Network type
@@ -670,7 +693,7 @@ fn get_testnet_script_info(script: KnownScript) -> Option<ScriptInfo> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cell_classifier::{create_universal_classifier, simple_ckb_cell_class, CellClassifier, CellInfo, ClassificationRule, RuleBasedClassifier};
+    use crate::cell_classifier::{CellClass, CellClassifier, CellInfo, ClassificationRule, RuleBasedClassifier};
     use ckb_std::ckb_constants::Source;
     use ckb_std::ckb_types::packed::Script;
 
@@ -693,13 +716,13 @@ mod tests {
     
     #[test]
     fn test_simple_ckb_cell_class() {
-        let class = simple_ckb_cell_class();
-        assert!(class.is_known("simple_ckb"));
+        let class = CellClass::SimpleCKB;
+        assert!(class.is_simple_ckb());
     }
     
     #[test]
-    fn test_universal_classifier() {
-        let classifier = create_universal_classifier("test");
+    fn test_rule_based_classifier_defaults() {
+        let classifier = RuleBasedClassifier::new("test");
         
         // Test simple CKB cell (no type script)
         let simple_cell = CellInfo {
@@ -712,8 +735,8 @@ mod tests {
             type_hash: None,
         };
         
-        let result = classifier.classify(&simple_cell);
-        assert!(result.is_known("simple_ckb"));
+        let result = classifier.classify(&simple_cell).unwrap();
+        assert!(result.is_simple_ckb());
         
         // Test cell with type script (should be unidentified without additional config)
         let typed_cell = CellInfo {
@@ -726,7 +749,7 @@ mod tests {
             type_hash: Some([1u8; 32]),
         };
         
-        let result2 = classifier.classify(&typed_cell);
+        let result2 = classifier.classify(&typed_cell).unwrap();
         assert!(result2.is_unidentified());
     }
     

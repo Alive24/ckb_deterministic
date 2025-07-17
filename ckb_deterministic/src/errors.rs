@@ -1,84 +1,75 @@
 extern crate alloc;
-use alloc::{string::String, vec::Vec};
 
 /// Errors for the ckb_deterministic library
+#[repr(i8)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error {
+    // * CKB Error
+    IndexOutOfBound = 1,
+    ItemMissing = 2,
+    LengthNotEnough = 3,
+    Encoding = 4,
+    WaitFailure = 5,
+    InvalidFd = 6,
+    OtherEndClosed = 7,
+    MaxVmsSpawned = 8,
+    MaxFdsCreated = 9,
+
+    // * Rust Error
+    Utf8Error = 10,
+    HexError = 11,
+
+    // * Deterministic Library Errors
     /// Cell data parsing or validation error
-    DataError,
+    DataError = 20,
     /// Cell classification error - unidentified cells found in strict mode
-    UnidentifiedCells,
+    UnidentifiedCells = 21,
     /// Recipe parsing error
-    RecipeError,
-    /// General CKB system error
-    SystemError(i8),
-    /// Validation error from the validation framework
-    ValidationError(ValidationError),
-}
+    RecipeError = 22,
+    /// Invalid code hash
+    InvalidCodeHash = 23,
+    /// Unknown script type
+    UnknownScript = 24,
 
-/// Validation error types
-#[derive(Debug, Clone, PartialEq)]
-pub enum ValidationError {
+    /* Validation errors */
     /// Wrong method path
-    WrongMethodPath {
-        expected: Vec<u8>,
-        actual: Vec<u8>,
-    },
+    WrongMethodPath = 30,
     /// Invalid argument count
-    InvalidArgumentCount {
-        expected: usize,
-        actual: usize,
-    },
+    InvalidArgumentCount = 31,
     /// Cell count constraint violation
-    CellCountViolation {
-        cell_type: Vec<u8>,
-        is_input: bool,
-        expected: String,
-        actual: usize,
-    },
-    /// Unidentified cells found when not allowed
-    UnidentifiedCells {
-        is_input: bool,
-        count: usize,
-    },
-    /// Custom validation error with message
-    CustomValidation(String),
+    CellCountViolation = 32,
+    /// Cell relationship validation failed
+    CellRelationshipRuleViolation = 33,
+    /// Business rule validation failed
+    BusinessRuleViolation = 34,
+    /// Additional validation error
+    AdditionalRuleValidation = 35,
     /// Missing required cell dependency
-    MissingCellDep {
-        tx_hash: [u8; 32],
-        index: u32,
-        dep_type: String,
-    },
+    MissingCellDep = 36,
     /// Missing required header dependency
-    MissingHeaderDep {
-        header_hash: [u8; 32],
-    },
+    MissingHeaderDep = 37,
     /// Invalid dep group
-    InvalidDepGroup {
-        reason: String,
-    },
-}
-
-impl From<ValidationError> for Error {
-    fn from(err: ValidationError) -> Self {
-        Error::ValidationError(err)
-    }
+    InvalidDepGroup = 38,
+    /// Expectation violation (Usually need to be mapped to a specific error)
+    ExpectationViolation = 39,
+    // Unknown error (catch-all)
+    Unknown = -1,
 }
 
 impl From<ckb_std::error::SysError> for Error {
     fn from(err: ckb_std::error::SysError) -> Self {
         // Convert SysError to its i8 representation
-        Error::SystemError(match err {
-            ckb_std::error::SysError::IndexOutOfBound => -1,
-            ckb_std::error::SysError::ItemMissing => -2,
-            ckb_std::error::SysError::LengthNotEnough(_) => -3,
-            ckb_std::error::SysError::Encoding => -4,
-            ckb_std::error::SysError::WaitFailure => -5,
-            ckb_std::error::SysError::InvalidFd => -6,
-            ckb_std::error::SysError::OtherEndClosed => -7,
-            ckb_std::error::SysError::MaxVmsSpawned => -8,
-            ckb_std::error::SysError::MaxFdsCreated => -9,
-            ckb_std::error::SysError::Unknown(_) => -99,
-        })
+        match err {
+            ckb_std::error::SysError::IndexOutOfBound => Error::IndexOutOfBound,
+            ckb_std::error::SysError::ItemMissing => Error::ItemMissing,
+            ckb_std::error::SysError::LengthNotEnough(_) => Error::LengthNotEnough,
+            ckb_std::error::SysError::Encoding => Error::Encoding,
+            ckb_std::error::SysError::WaitFailure => Error::WaitFailure,
+            ckb_std::error::SysError::InvalidFd => Error::InvalidFd,
+            ckb_std::error::SysError::OtherEndClosed => Error::OtherEndClosed,
+            ckb_std::error::SysError::MaxVmsSpawned => Error::MaxVmsSpawned,
+            ckb_std::error::SysError::MaxFdsCreated => Error::MaxFdsCreated,
+            ckb_std::error::SysError::Unknown(_) => Error::Unknown,
+        }
     }
 }

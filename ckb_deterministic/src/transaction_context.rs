@@ -10,7 +10,7 @@ use crate::cell_classifier::{CellCollector, CellClassifier, ClassifiedCells};
 use crate::transaction_deps::{CellDepInfo, CellDepVecExt};
 use ckb_std::debug;
 extern crate alloc;
-use alloc::{vec::Vec, string::String};
+use alloc::vec::Vec;
 #[cfg(feature = "native-simulator")]
 use alloc::format;
 use core::{
@@ -23,9 +23,6 @@ use core::{
 /// This can be specialized by any project for their specific needs
 pub struct TransactionContext<C: CellClassifier> {
     pub recipe: TransactionRecipe,
-    pub method_path_hash: u64,
-    pub method_path_name: String,
-    pub arguments: Vec<Vec<u8>>,
     pub input_cells: ClassifiedCells,
     pub output_cells: ClassifiedCells,
     pub cell_deps: Vec<CellDepInfo>,
@@ -48,14 +45,6 @@ impl<C: CellClassifier> TransactionContext<C> {
         };
         
         debug!("Transaction recipe found");
-        
-        // Extract method path and arguments
-        let method_path_hash = recipe.method_path_hash()?;
-        let method_path_name = recipe.method_path_name()?;
-        let arguments = recipe.arguments_vec();
-        
-        debug!("Method path hash: {}, name: {}", method_path_hash, method_path_name);
-        debug!("Arguments count: {}", arguments.len());
         
         // Collect and classify cells
         let (input_cells, output_cells) = collector.collect_inputs_and_outputs()?;
@@ -94,9 +83,6 @@ impl<C: CellClassifier> TransactionContext<C> {
         
         Ok(Self {
             recipe,
-            method_path_hash,
-            method_path_name,
-            arguments,
             input_cells,
             output_cells,
             cell_deps,
@@ -105,15 +91,6 @@ impl<C: CellClassifier> TransactionContext<C> {
         })
     }
     
-    /// Check if method path matches expected hash
-    pub fn matches_method_path(&self, expected_hash: u64) -> bool {
-        self.method_path_hash == expected_hash
-    }
-    
-    /// Check if method path matches expected name
-    pub fn matches_method_name(&self, expected_name: &str) -> bool {
-        self.method_path_name == expected_name
-    }
     
     /// Validate that the transaction context is consistent
     pub fn validate(&self) -> Result<(), Error> {
@@ -123,11 +100,6 @@ impl<C: CellClassifier> TransactionContext<C> {
             return Err(Error::UnidentifiedCells);
         }
         
-        // Ensure we have a valid method path name
-        if self.method_path_name.is_empty() {
-            debug!("Transaction context validation failed: empty method path name");
-            return Err(Error::RecipeError);
-        }
         
         debug!("Transaction context validation passed");
         Ok(())
@@ -136,9 +108,7 @@ impl<C: CellClassifier> TransactionContext<C> {
     /// Get summary statistics for debugging
     pub fn summary(&self) -> TransactionSummary {
         TransactionSummary {
-            method_path_name_length: self.method_path_name.len(),
-            method_path_hash: self.method_path_hash,
-            argument_count: self.arguments.len(),
+            argument_count: self.recipe.arguments_vec().len(),
             input_known_cells: self.input_cells.known_cells.len(),
             input_custom_cells: self.input_cells.custom_cells.len(),
             input_unidentified_cells: self.input_cells.unidentified_cells.len(),
@@ -154,8 +124,6 @@ impl<C: CellClassifier> TransactionContext<C> {
 /// Summary statistics for transaction context
 #[derive(Debug)]
 pub struct TransactionSummary {
-    pub method_path_name_length: usize,
-    pub method_path_hash: u64,
     pub argument_count: usize,
     pub input_known_cells: usize,
     pub input_custom_cells: usize,
@@ -212,8 +180,6 @@ mod tests {
     #[test]
     fn test_transaction_summary() {
         let summary = TransactionSummary {
-            method_path_name_length: 12, // "UDT.transfer".len()
-            method_path_hash: 0x123456789abcdef0,
             argument_count: 3,
             input_known_cells: 2,
             input_custom_cells: 1,
@@ -226,8 +192,6 @@ mod tests {
         };
         
         // Test that summary contains expected values
-        assert_eq!(summary.method_path_name_length, 12);
-        assert_eq!(summary.method_path_hash, 0x123456789abcdef0);
         assert_eq!(summary.argument_count, 3);
         assert_eq!(summary.input_known_cells, 2);
         assert_eq!(summary.cell_deps_count, 2);
