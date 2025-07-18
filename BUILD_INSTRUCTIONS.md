@@ -33,30 +33,6 @@ This builds the example contracts in `example_contracts/` directory for the RISC
 
 The compiled binaries will be placed in `build/release/`.
 
-### 3. Build Specific Contract
-
-To build a specific contract:
-
-```bash
-make run CONTRACT=deterministic_cdp_project TASK=build
-```
-
-## Direct Cargo Commands
-
-If you prefer using cargo directly:
-
-### Build library:
-```bash
-cargo build -p ckb_deterministic --release
-cargo build -p deterministic-cdp-shared --release
-```
-
-### Build contract:
-```bash
-cd example_contracts/deterministic_cdp_project
-cargo build --release --target riscv64imac-unknown-none-elf
-```
-
 ## Output
 
 - Libraries: `target/release/`

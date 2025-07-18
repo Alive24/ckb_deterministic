@@ -45,10 +45,10 @@ build:
 	mkdir -p $(BUILD_DIR)
 	@echo "Building ckb_deterministic library..."
 	cargo build -p ckb_deterministic $(MODE_ARGS) $(CARGO_ARGS)
-	@echo "Building shared libraries..."
-	cargo build -p deterministic-cdp-shared $(MODE_ARGS) $(CARGO_ARGS)
 
 build-contracts:
+	@echo "Building shared libraries..."
+	cargo build -p deterministic-cdp-shared $(MODE_ARGS) $(CARGO_ARGS)
 	@echo "Building example contracts for RISC-V target..."
 	@set -eu; \
 	if [ "x$(CONTRACT)" = "x" ]; then \

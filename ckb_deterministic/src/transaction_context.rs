@@ -92,6 +92,24 @@ impl<C: CellClassifier> TransactionContext<C> {
     }
     
     
+    /// Create a transaction context from parts
+    pub fn from_parts(
+        recipe: TransactionRecipe,
+        input_cells: ClassifiedCells,
+        output_cells: ClassifiedCells,
+        cell_deps: Vec<CellDepInfo>,
+        header_deps: Vec<[u8; 32]>,
+    ) -> Self {
+        Self {
+            recipe,
+            input_cells,
+            output_cells,
+            cell_deps,
+            header_deps,
+            _phantom: core::marker::PhantomData,
+        }
+    }
+    
     /// Validate that the transaction context is consistent
     pub fn validate(&self) -> Result<(), Error> {
         // Check for unidentified cells (if collector was in strict mode, this should already be caught)

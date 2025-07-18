@@ -26,6 +26,7 @@ mod recipes;
 use deterministic_cdp_shared::create_cdp_classifier;
 use deterministic_cdp_shared::Error;
 
+#[cfg(any(feature = "library", test))]
 fn main() -> i8 {
     match program_entry_wrap() {
         Ok(_) => 0,

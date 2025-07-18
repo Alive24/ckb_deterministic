@@ -3,7 +3,6 @@ resolver = "2"
 
 members = [
     "ckb_deterministic",
-    "tests",
     "example_contracts/deterministic_cdp_project",
     "example_libs/deterministic_cdp_shared",
 ]

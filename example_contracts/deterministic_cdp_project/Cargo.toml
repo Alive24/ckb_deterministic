@@ -6,6 +6,7 @@ edition = "2021"
 [features]
 default = []
 library = []
+native-simulator = ["library", "ckb-std/native-simulator"]
 
 [[bin]]
 name = "deterministic_cdp_project"
