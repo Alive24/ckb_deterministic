@@ -16,6 +16,7 @@ CKB Deterministic provides a standardized approach to:
 - **SSRI Support**: Script-to-Script Remote Invocation pattern implementation
 - **Direct Recipe Validation**: Validation rules check method paths internally without external matching
 - **Project Flexibility**: Generic, reusable components that can be specialized for any CKB project
+- **Type ID Support**: Complete Type ID implementation for creating unique cell types
 
 ## Features
 
@@ -32,6 +33,7 @@ CKB Deterministic provides a standardized approach to:
 - ✅ **Extension Traits**: Add functionality to generated types without modification
 - ✅ **Network Awareness**: Mainnet/testnet configuration for known scripts
 - ✅ **Debugging Support**: Built-in debug logging for transaction analysis
+- ✅ **Type ID Implementation**: Complete Type ID support for unique cell type creation
 
 ## Architecture
 
@@ -43,6 +45,7 @@ The framework follows a modular architecture with clear separation of concerns:
   - Validation framework with dependency support
   - Jest-like assertions
   - Known scripts registry
+  - Type ID implementation
   
 - **Project-Specific Libraries**: Implement domain-specific logic
   - Custom cell types and classification rules
@@ -256,7 +259,48 @@ let recipe = TransactionRecipe::from_witness(0)?;
 let has_deps = recipe.has_cell_deps() || recipe.has_header_deps();
 ```
 
-### 7. Jest-like Assertions
+### 7. Type ID Support
+
+The framework includes a complete Type ID implementation for creating unique cell types:
+
+```rust
+use ckb_deterministic::type_id::{
+    validate_type_id, 
+    load_type_id_from_script_args,
+    check_type_id_from_script_args,
+    calculate_type_id
+};
+
+// In a smart contract - validate Type ID from script args
+fn main() -> Result<(), Error> {
+    // Simple one-line validation if Type ID is at the beginning of script args
+    check_type_id_from_script_args()?;
+    
+    // Or manually load and validate
+    let type_id = load_type_id_from_script_args(0)?;
+    validate_type_id(type_id)?;
+    
+    // Your contract logic here...
+    Ok(())
+}
+
+// For testing - calculate expected Type ID
+#[test]
+fn test_type_id_calculation() {
+    let input_cell = vec![/* serialized first input cell */];
+    let output_index = 0;
+    let expected_type_id = calculate_type_id(&input_cell, output_index);
+    
+    // Use this to verify your Type ID cells
+}
+```
+
+Type ID Rules:
+- At most one input and one output cell can have the same Type ID
+- When creating a new Type ID cell, the Type ID must equal `blake2b(first_input | output_index)`
+- Type ID ensures global uniqueness for cell types
+
+### 8. Jest-like Assertions
 
 The framework provides a familiar assertion API for validation:
 

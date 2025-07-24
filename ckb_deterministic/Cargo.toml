@@ -11,6 +11,12 @@ native-simulator = ["library", "ckb-std/native-simulator"]
 ckb-std = { version = "0.16.4", default-features = false, features = ["allocator", "ckb-types", "dummy-atomic"] }
 ckb-hash = { version = "0.202.0", default-features = false, features = ["ckb-contract"] }
 molecule = { version = "0.8.0", default-features = false, features = ["bytes_vec"] }
+blake2b-ref = { version = "0.3", default-features = false }
 
 [dev-dependencies]
 ckb-testtool = "0.10.2"
+
+[[example]]
+name = "type_id_usage"
+path = "../examples/type_id_usage.rs"
+required-features = ["library"]

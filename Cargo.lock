@@ -765,6 +765,7 @@ dependencies = [
 name = "ckb_deterministic"
 version = "0.1.0"
 dependencies = [
+ "blake2b-ref",
  "ckb-hash 0.202.0",
  "ckb-std",
  "ckb-testtool",

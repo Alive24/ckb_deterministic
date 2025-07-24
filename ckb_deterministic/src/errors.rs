@@ -52,6 +52,13 @@ pub enum Error {
     InvalidDepGroup = 38,
     /// Expectation violation (Usually need to be mapped to a specific error)
     ExpectationViolation = 39,
+    
+    /* Type ID errors */
+    /// Multiple Type ID cells found (max 1 input and 1 output allowed)
+    TypeIDMultipleCells = 40,
+    /// Type ID mismatch when creating new Type ID cell
+    TypeIDMismatch = 41,
+    
     // Unknown error (catch-all)
     Unknown = -1,
 }
