@@ -26,10 +26,10 @@ option Byte32VecOpt (Byte32Vec);
 // Recipe argument that can contain either inline data or a reference to data
 table RecipeArgument {
     arg_type: byte,               // 0 = inline_data
-                                  // 1 = output_data_reference (index into outputs_data)
-                                  // 2 = input_data_reference (index into inputs for cell data)
-                                  // 3 = cell_dep_data_reference (index into cell_deps for dep cell data)
-                                  // 4 = header_reference (index into header_deps)
+                                  // 1 = input_data_reference (index into inputs for cell data) - matches Source::Input
+                                  // 2 = output_data_reference (index into outputs_data) - matches Source::Output
+                                  // 3 = cell_dep_data_reference (index into cell_deps for dep cell data) - matches Source::CellDep
+                                  // 4 = header_reference (index into header_deps) - matches Source::HeaderDep
     data: Bytes,                  // For inline_data: the actual data
                                   // For references: 4-byte LE index into the corresponding vector
 }
