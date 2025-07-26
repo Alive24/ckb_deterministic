@@ -23,10 +23,23 @@ vector CellDepVec <CellDep>;
 option CellDepVecOpt (CellDepVec);
 option Byte32VecOpt (Byte32Vec);
 
+// Recipe argument that can contain either inline data or a reference to data
+table RecipeArgument {
+    arg_type: byte,               // 0 = inline_data
+                                  // 1 = output_data_reference (index into outputs_data)
+                                  // 2 = input_data_reference (index into inputs for cell data)
+                                  // 3 = cell_dep_data_reference (index into cell_deps for dep cell data)
+                                  // 4 = header_reference (index into header_deps)
+    data: Bytes,                  // For inline_data: the actual data
+                                  // For references: 4-byte LE index into the corresponding vector
+}
+
+vector RecipeArgumentVec <RecipeArgument>;
+
 // Transaction Recipe Schema for SSRI - Generic for all CKB projects
 table TransactionRecipe {
     method_path: Bytes,           // The method path (e.g., b"UDT.transfer", b"AMM.swap")
-    arguments: BytesVec,          // Encoded arguments for the method
+    arguments: RecipeArgumentVec, // Structured arguments for the method
     cell_deps: CellDepVecOpt,     // Optional cell dependencies
     header_deps: Byte32VecOpt,    // Optional header dependencies
 }
