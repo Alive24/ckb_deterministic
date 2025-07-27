@@ -193,33 +193,37 @@ pub fn create_transaction_recipe(method_name: &str, arguments: &[Vec<u8>]) -> Re
         .build())
 }
 
-/// Parse transaction recipe from the last witness item
-/// Returns None if no witnesses exist or parsing fails
+/// Parse transaction recipe from any witness position
+/// Searches through all witnesses and returns the first valid TransactionRecipe found
 pub fn parse_transaction_recipe() -> Result<Option<TransactionRecipe>, Error> {
-    // Try to find the last witness by attempting to load witnesses
-    let mut last_witness_data = None;
     let mut index = 0;
     
+    // Search through all witnesses
     loop {
         match high_level::load_witness(index, Source::Input) {
             Ok(data) => {
-                last_witness_data = Some(data);
-                index += 1;
+                // Try to parse this witness as a TransactionRecipe
+                match TransactionRecipe::from_slice(&data) {
+                    Ok(recipe) => {
+                        // Found a valid recipe, return it
+                        return Ok(Some(recipe));
+                    }
+                    Err(_) => {
+                        // Not a valid recipe, continue searching
+                        index += 1;
+                        continue;
+                    }
+                }
             }
-            Err(_) => break,
+            Err(_) => {
+                // No more witnesses to check
+                break;
+            }
         }
     }
     
-    let witness_data = match last_witness_data {
-        Some(data) => data,
-        None => return Ok(None),
-    };
-    
-    // Try to parse as TransactionRecipe using molecule
-    match TransactionRecipe::from_slice(&witness_data) {
-        Ok(recipe) => Ok(Some(recipe)),
-        Err(_) => Ok(None),
-    }
+    // No valid recipe found in any witness
+    Ok(None)
 }
 
 /// Parse transaction recipe from a specific witness index
@@ -389,7 +393,8 @@ pub fn has_transaction_recipe_at(index: usize) -> bool {
     }
 }
 
-/// Find the first witness index that contains a transaction recipe
+/// Find the first witness index that contains a valid transaction recipe
+/// Searches through all witnesses in order and returns the index of the first valid recipe
 pub fn find_transaction_recipe_witness() -> Option<usize> {
     let mut index = 0;
     loop {
@@ -404,6 +409,65 @@ pub fn find_transaction_recipe_witness() -> Option<usize> {
         }
     }
     None
+}
+
+/// Resolve a RecipeArgument to get the actual data
+/// For inline data, returns the data directly
+/// For references, loads the data from the specified source
+pub fn resolve_recipe_argument(arg: &RecipeArgument) -> Result<Vec<u8>, Error> {
+    let arg_type_byte = arg.arg_type();
+    let arg_type_value = u8::from(arg_type_byte);
+    
+    match arg_type_value {
+        0 => {
+            // inline_data - return the data directly
+            Ok(arg.data().raw_data().to_vec())
+        }
+        1 => {
+            // input_data_reference
+            let index = u32::from_le_bytes(
+                arg.data().raw_data()[0..4]
+                    .try_into()
+                    .map_err(|_| Error::Encoding)?
+            );
+            high_level::load_cell_data(index as usize, Source::Input)
+                .map_err(|_| Error::IndexOutOfBound)
+        }
+        2 => {
+            // output_data_reference
+            let index = u32::from_le_bytes(
+                arg.data().raw_data()[0..4]
+                    .try_into()
+                    .map_err(|_| Error::Encoding)?
+            );
+            high_level::load_cell_data(index as usize, Source::Output)
+                .map_err(|_| Error::IndexOutOfBound)
+        }
+        3 => {
+            // cell_dep_data_reference
+            let index = u32::from_le_bytes(
+                arg.data().raw_data()[0..4]
+                    .try_into()
+                    .map_err(|_| Error::Encoding)?
+            );
+            high_level::load_cell_data(index as usize, Source::CellDep)
+                .map_err(|_| Error::IndexOutOfBound)
+        }
+        4 => {
+            // header_reference - headers don't have data, return the header hash
+            let index = u32::from_le_bytes(
+                arg.data().raw_data()[0..4]
+                    .try_into()
+                    .map_err(|_| Error::Encoding)?
+            );
+            // Load header and return its hash
+            let header = high_level::load_header(index as usize, Source::HeaderDep)
+                .map_err(|_| Error::IndexOutOfBound)?;
+            // Return the raw header bytes
+            Ok(header.as_slice().to_vec())
+        }
+        _ => Err(Error::Encoding),
+    }
 }
 
 /// Helper functions for working with TransactionRecipe directly

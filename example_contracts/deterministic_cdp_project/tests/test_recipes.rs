@@ -5,7 +5,7 @@ mod tests {
         transaction_context::TransactionContext,
         validation::{TransactionValidationRules, CellCountConstraint},
         errors::Error,
-        generated::{TransactionRecipeBuilder, BytesVecBuilder, Bytes},
+        generated::{TransactionRecipeBuilder, Bytes, RecipeArgumentVec},
     };
     use ckb_std::{
         ckb_types::{
@@ -97,7 +97,7 @@ mod tests {
         // Mock the transaction recipe
         let recipe = TransactionRecipeBuilder::default()
             .method_path(Bytes::from(method_path.to_vec()))
-            .arguments(BytesVecBuilder::default().build())
+            .arguments(RecipeArgumentVec::default())
             .build();
 
         // Manually create classified cells
@@ -320,8 +320,9 @@ mod tests {
                 |context| {
                     // Check if vault has minimum collateral
                     let vaults = context.output_cells.get_custom("vault");
-                    if let Some(vault_cells) = vaults {
-                        for vault in vault_cells {
+                    match vaults {
+                        Some(vault_cells) => {
+                            for vault in vault_cells {
                             // Parse vault data (collateral is first 16 bytes)
                             if vault.data.len() >= 16 {
                                 let collateral = u128::from_le_bytes(
@@ -332,8 +333,13 @@ mod tests {
                                 }
                             }
                         }
+                            Ok(())
+                        }
+                        None => {
+                            // No vault cells found
+                            Ok(())
+                        }
                     }
-                    Ok(())
                 }
             );
         

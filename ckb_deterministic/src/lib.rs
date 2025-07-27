@@ -26,5 +26,6 @@ pub use transaction_recipe::{
     create_recipe_with_args,
     create_recipe_flexible,
     serialize_transaction_recipe,
+    resolve_recipe_argument,
 };
 
