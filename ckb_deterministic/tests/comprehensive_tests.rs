@@ -11,7 +11,8 @@ mod comprehensive_tests {
         transaction_recipe::TransactionRecipeExt,
         validation::{TransactionValidationRules, CellCountConstraint},
         errors::Error,
-        generated::{TransactionRecipeBuilder, BytesVecBuilder, Bytes},
+        generated::{TransactionRecipeBuilder, Bytes, RecipeArgumentVec},
+        transaction_recipe::create_inline_argument,
         known_scripts::KnownScript,
         assertions::{expect},
     };
@@ -236,9 +237,9 @@ mod comprehensive_tests {
         let recipe = TransactionRecipeBuilder::default()
             .method_path(Bytes::from(method_path.to_vec()))
             .arguments(
-                BytesVecBuilder::default()
-                    .push(Bytes::from(args[0].clone()))
-                    .push(Bytes::from(args[1].clone()))
+                RecipeArgumentVec::new_builder()
+                    .push(create_inline_argument(&args[0]))
+                    .push(create_inline_argument(&args[1]))
                     .build()
             )
             .build();
@@ -260,7 +261,7 @@ mod comprehensive_tests {
         
         let _recipe_with_deps = TransactionRecipeBuilder::default()
             .method_path(Bytes::from(b"method".to_vec()))
-            .arguments(BytesVecBuilder::default().build())
+            .arguments(RecipeArgumentVec::new_builder().build())
             // Cell deps and header deps would be set via generated types
             .build();
         
@@ -271,7 +272,7 @@ mod comprehensive_tests {
     fn test_transaction_recipe_empty() {
         let recipe = TransactionRecipeBuilder::default()
             .method_path(Bytes::from(vec![] as Vec<u8>))
-            .arguments(BytesVecBuilder::default().build())
+            .arguments(RecipeArgumentVec::new_builder().build())
             .build();
         
         assert!(recipe.method_path_bytes().is_empty());
@@ -288,7 +289,7 @@ mod comprehensive_tests {
     ) -> TransactionContext<RuleBasedClassifier> {
         let recipe = TransactionRecipeBuilder::default()
             .method_path(Bytes::from(method_path.to_vec()))
-            .arguments(BytesVecBuilder::default().build())
+            .arguments(RecipeArgumentVec::new_builder().build())
             .build();
         
         TransactionContext::from_parts(
@@ -354,9 +355,9 @@ mod comprehensive_tests {
         let recipe_with_args = TransactionRecipeBuilder::default()
             .method_path(Bytes::from(b"transfer".to_vec()))
             .arguments(
-                BytesVecBuilder::default()
-                    .push(Bytes::from(vec![1]))
-                    .push(Bytes::from(vec![2]))
+                RecipeArgumentVec::new_builder()
+                    .push(create_inline_argument(&vec![1]))
+                    .push(create_inline_argument(&vec![2]))
                     .build()
             )
             .build();
@@ -764,8 +765,8 @@ mod comprehensive_tests {
         let recipe = TransactionRecipeBuilder::default()
             .method_path(Bytes::from(b"createVault".to_vec()))
             .arguments(
-                BytesVecBuilder::default()
-                    .push(Bytes::from(1000u128.to_le_bytes().to_vec()))
+                RecipeArgumentVec::new_builder()
+                    .push(create_inline_argument(&1000u128.to_le_bytes()))
                     .build()
             )
             .build();
@@ -951,8 +952,8 @@ mod comprehensive_tests {
         let recipe = TransactionRecipeBuilder::default()
             .method_path(Bytes::from(b"test".to_vec()))
             .arguments(
-                BytesVecBuilder::default()
-                    .push(Bytes::from(vec![1]))
+                RecipeArgumentVec::new_builder()
+                    .push(create_inline_argument(&vec![1]))
                     .build()
             )
             .build();

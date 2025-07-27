@@ -2,7 +2,8 @@ use ckb_deterministic::transaction_context::TransactionContext;
 use ckb_deterministic::transaction_deps::{CellDepInfo, OutPointInfo, DepType};
 use ckb_deterministic::cell_classifier::{RuleBasedClassifier, CellClass, ClassificationRule, CellInfo, ClassifiedCells, CellClassifier};
 use ckb_deterministic::transaction_recipe::TransactionRecipeExt;
-use ckb_deterministic::generated::{TransactionRecipeBuilder, BytesVecBuilder, Bytes};
+use ckb_deterministic::generated::{TransactionRecipeBuilder, Bytes, RecipeArgumentVec};
+use ckb_deterministic::transaction_recipe::create_inline_argument;
 use ckb_std::{
     ckb_types::{packed::{Script, ScriptBuilder}, prelude::*},
     ckb_constants::Source,
@@ -34,7 +35,7 @@ fn create_test_cell(index: usize, type_hash: Option<[u8; 32]>) -> CellInfo {
 fn test_context_creation_basic() {
     let recipe = TransactionRecipeBuilder::default()
         .method_path(Bytes::from(b"transfer".to_vec()))
-        .arguments(BytesVecBuilder::default().build())
+        .arguments(RecipeArgumentVec::new_builder().build())
         .build();
     
     let context: TransactionContext<RuleBasedClassifier> = TransactionContext::from_parts(
@@ -80,9 +81,9 @@ fn test_context_with_classified_cells() {
     let recipe = TransactionRecipeBuilder::default()
         .method_path(Bytes::from(b"complex".to_vec()))
         .arguments(
-            BytesVecBuilder::default()
-                .push(Bytes::from(vec![1, 2, 3]))
-                .push(Bytes::from(vec![4, 5, 6]))
+            RecipeArgumentVec::new_builder()
+                .push(create_inline_argument(&vec![1, 2, 3]))
+                .push(create_inline_argument(&vec![4, 5, 6]))
                 .build()
         )
         .build();
@@ -137,7 +138,7 @@ fn test_context_with_dependencies() {
     
     let recipe = TransactionRecipeBuilder::default()
         .method_path(Bytes::from(b"advanced".to_vec()))
-        .arguments(BytesVecBuilder::default().build())
+        .arguments(RecipeArgumentVec::new_builder().build())
         .build();
     
     let context: TransactionContext<RuleBasedClassifier> = TransactionContext::from_parts(
@@ -187,7 +188,7 @@ fn test_context_cell_access_patterns() {
     
     let recipe = TransactionRecipeBuilder::default()
         .method_path(Bytes::from(b"transfer".to_vec()))
-        .arguments(BytesVecBuilder::default().build())
+        .arguments(RecipeArgumentVec::new_builder().build())
         .build();
     
     let context: TransactionContext<RuleBasedClassifier> = TransactionContext::from_parts(
@@ -219,7 +220,7 @@ fn test_context_cell_access_patterns() {
 fn test_context_empty_collections() {
     let recipe = TransactionRecipeBuilder::default()
         .method_path(Bytes::from(b"empty".to_vec()))
-        .arguments(BytesVecBuilder::default().build())
+        .arguments(RecipeArgumentVec::new_builder().build())
         .build();
         
     let context: TransactionContext<RuleBasedClassifier> = TransactionContext::from_parts(
@@ -257,7 +258,7 @@ fn test_context_with_unidentified_cells() {
     
     let recipe = TransactionRecipeBuilder::default()
         .method_path(Bytes::from(b"test".to_vec()))
-        .arguments(BytesVecBuilder::default().build())
+        .arguments(RecipeArgumentVec::new_builder().build())
         .build();
         
     let context: TransactionContext<RuleBasedClassifier> = TransactionContext::from_parts(
@@ -285,10 +286,10 @@ fn test_context_recipe_data() {
     let recipe = TransactionRecipeBuilder::default()
         .method_path(Bytes::from(b"complexMethod".to_vec()))
         .arguments(
-            BytesVecBuilder::default()
-                .push(Bytes::from(args[0].clone()))
-                .push(Bytes::from(args[1].clone()))
-                .push(Bytes::from(args[2].clone()))
+            RecipeArgumentVec::new_builder()
+                .push(create_inline_argument(&args[0]))
+                .push(create_inline_argument(&args[1]))
+                .push(create_inline_argument(&args[2]))
                 .build()
         )
         .build();
@@ -332,7 +333,7 @@ fn test_context_large_cell_collections() {
     
     let recipe = TransactionRecipeBuilder::default()
         .method_path(Bytes::from(b"bulk".to_vec()))
-        .arguments(BytesVecBuilder::default().build())
+        .arguments(RecipeArgumentVec::new_builder().build())
         .build();
         
     let context: TransactionContext<RuleBasedClassifier> = TransactionContext::from_parts(
@@ -388,7 +389,7 @@ fn test_context_mixed_sources() {
     
     let recipe = TransactionRecipeBuilder::default()
         .method_path(Bytes::from(b"transfer".to_vec()))
-        .arguments(BytesVecBuilder::default().build())
+        .arguments(RecipeArgumentVec::new_builder().build())
         .build();
         
     let context: TransactionContext<RuleBasedClassifier> = TransactionContext::from_parts(

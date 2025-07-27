@@ -8,31 +8,37 @@ use crate::cell_classifier::CellClassifier;
 /// 
 /// # Examples
 /// 
-/// ## Using RecipeBuilder for flexible argument construction
+/// ## Using helper functions for flexible argument construction
 /// 
-/// ```rust
-/// use ckb_deterministic::transaction_recipe::{RecipeBuilder, create_inline_argument};
+/// ```rust,no_run
+/// # use ckb_deterministic::errors::Error;
+/// # fn example() -> Result<(), Error> {
+/// use ckb_deterministic::transaction_recipe::{
+///     create_inline_argument, create_output_data_reference, 
+///     create_input_data_reference, create_cell_dep_data_reference,
+///     create_recipe_with_args
+/// };
 /// 
 /// // Simple recipe with one output data reference
-/// let recipe = RecipeBuilder::new("Protocol.update")
-///     .arg_output_ref(0)  // Reference to outputs_data[0]
-///     .build()?;
+/// let recipe = create_recipe_with_args(
+///     "Protocol.update",
+///     vec![create_output_data_reference(0)]
+/// )?;
 /// 
 /// // Complex recipe with multiple argument types
-/// let recipe = RecipeBuilder::new("AMM.swap")
-///     .arg_inline(b"token_a")           // Inline token identifier
-///     .arg_inline(b"token_b")           // Inline token identifier
-///     .arg_output_ref(1)                // Reference to amount in outputs_data[1]
-///     .arg_cell_dep_ref(0)              // Reference to price oracle in cell_deps[0]
-///     .build()?;
+/// let recipe = create_recipe_with_args(
+///     "AMM.swap",
+///     vec![
+///         create_inline_argument(b"token_a"),
+///         create_inline_argument(b"token_b"),
+///         create_output_data_reference(1),
+///         create_cell_dep_data_reference(0),
+///     ]
+/// )?;
 /// 
-/// // Recipe with dependencies
-/// let recipe = RecipeBuilder::new("Vault.liquidate")
-///     .arg_input_ref(0)                 // Reference to vault data in inputs[0]
-///     .arg_header_ref(0)                // Reference to block header for timestamp
-///     .cell_deps(vec![oracle_dep])      // Add oracle dependency
-///     .header_deps(vec![block_hash])    // Add block header dependency
-///     .build()?;
+/// // Recipe with dependencies would use create_transaction_recipe_with_deps
+/// # Ok(())
+/// # }
 /// ```
 
 use crate::errors::Error;
@@ -312,8 +318,9 @@ pub fn create_header_reference(index: u32) -> RecipeArgument {
 /// * `index` - The index within the source
 /// 
 /// # Examples
-/// ```rust
+/// ```rust,no_run
 /// use ckb_std::ckb_constants::Source;
+/// use ckb_deterministic::transaction_recipe::create_recipe_with_reference;
 /// 
 /// // Reference to output data at index 0
 /// let arg = create_recipe_with_reference(Source::Output, 0);
@@ -347,7 +354,14 @@ pub fn create_recipe_with_reference(source: Source, index: u32) -> RecipeArgumen
 /// 
 /// # Examples
 /// 
-/// ```rust
+/// ```rust,no_run
+/// # use ckb_deterministic::errors::Error;
+/// # fn example() -> Result<(), Error> {
+/// use ckb_deterministic::transaction_recipe::{
+///     create_inline_argument, create_output_data_reference,
+///     create_cell_dep_data_reference, create_recipe_with_args
+/// };
+/// 
 /// // Simple recipe with one output data reference
 /// let recipe = create_recipe_with_args(
 ///     "Protocol.update",
@@ -364,6 +378,8 @@ pub fn create_recipe_with_reference(source: Source, index: u32) -> RecipeArgumen
 ///         create_cell_dep_data_reference(0),
 ///     ]
 /// )?;
+/// # Ok(())
+/// # }
 /// ```
 pub fn create_recipe_flexible(method_name: &str, args: Vec<RecipeArgument>) -> Result<TransactionRecipe, Error> {
     create_recipe_with_args(method_name, args)

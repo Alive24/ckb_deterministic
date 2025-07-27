@@ -16,12 +16,16 @@
 //!
 //! # Usage
 //!
-//! ```no_run
+//! ```rust,no_run
+//! # use ckb_deterministic::errors::Error;
+//! # fn example() -> Result<(), Error> {
 //! use ckb_deterministic::type_id::{validate_type_id, load_type_id_from_script_args};
 //!
 //! // In a smart contract:
 //! let type_id = load_type_id_from_script_args(0)?;
 //! validate_type_id(type_id)?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! # Rules
@@ -136,11 +140,15 @@ pub fn calculate_type_id(input: &[u8], output_index: usize) -> [u8; 32] {
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```rust,no_run
+/// # use ckb_deterministic::errors::Error;
+/// # fn example() -> Result<(), Error> {
 /// use ckb_deterministic::type_id::validate_type_id;
 /// 
 /// let type_id = [0u8; 32]; // Your Type ID
 /// validate_type_id(type_id)?;
+/// # Ok(())
+/// # }
 /// ```
 pub fn validate_type_id(type_id: [u8; 32]) -> Result<(), Error> {
     // Check for multiple Type ID cells
@@ -185,11 +193,15 @@ pub fn validate_type_id(type_id: [u8; 32]) -> Result<(), Error> {
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```rust,no_run
+/// # use ckb_deterministic::errors::Error;
+/// # fn example() -> Result<(), Error> {
 /// use ckb_deterministic::type_id::load_type_id_from_script_args;
 /// 
 /// // Load Type ID from the beginning of script args
 /// let type_id = load_type_id_from_script_args(0)?;
+/// # Ok(())
+/// # }
 /// ```
 pub fn load_type_id_from_script_args(offset: usize) -> Result<[u8; 32], Error> {
     let script = load_script()?;
@@ -216,11 +228,15 @@ pub fn load_type_id_from_script_args(offset: usize) -> Result<[u8; 32], Error> {
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```rust,no_run
+/// # use ckb_deterministic::errors::Error;
+/// # fn example() -> Result<(), Error> {
 /// use ckb_deterministic::type_id::check_type_id_from_script_args;
 /// 
 /// // In a smart contract's main function:
 /// check_type_id_from_script_args()?;
+/// # Ok(())
+/// # }
 /// ```
 pub fn check_type_id_from_script_args() -> Result<(), Error> {
     let type_id = load_type_id_from_script_args(0)?;

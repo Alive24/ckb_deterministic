@@ -2,7 +2,8 @@ use ckb_deterministic::validation::{TransactionValidationRules, CellCountConstra
 use ckb_deterministic::cell_classifier::{RuleBasedClassifier, CellInfo, ClassifiedCells};
 use ckb_deterministic::transaction_context::TransactionContext;
 use ckb_deterministic::errors::Error;
-use ckb_deterministic::generated::{TransactionRecipeBuilder, BytesVecBuilder, Bytes};
+use ckb_deterministic::generated::{TransactionRecipeBuilder, Bytes, RecipeArgumentVec};
+use ckb_deterministic::transaction_recipe::create_inline_argument;
 use ckb_std::ckb_types::packed::{Script, ScriptBuilder};
 use ckb_std::ckb_types::prelude::*;
 extern crate alloc;
@@ -43,7 +44,7 @@ fn create_test_context(
     // Create recipe
     let recipe = TransactionRecipeBuilder::default()
         .method_path(Bytes::from(method_path.to_vec()))
-        .arguments(BytesVecBuilder::default().build())
+        .arguments(RecipeArgumentVec::new_builder().build())
         .build();
     
     // Create classified cells
@@ -133,10 +134,10 @@ fn test_argument_count_validation() {
     let recipe_with_args = TransactionRecipeBuilder::default()
         .method_path(Bytes::from(b"transfer".to_vec()))
         .arguments(
-            BytesVecBuilder::default()
-                .push(Bytes::from(vec![1]))
-                .push(Bytes::from(vec![2]))
-                .push(Bytes::from(vec![3]))
+            RecipeArgumentVec::new_builder()
+                .push(create_inline_argument(&vec![1]))
+                .push(create_inline_argument(&vec![2]))
+                .push(create_inline_argument(&vec![3]))
                 .build()
         )
         .build();
@@ -274,9 +275,9 @@ fn test_multiple_validation_rules() {
     let recipe = TransactionRecipeBuilder::default()
         .method_path(Bytes::from(b"complex".to_vec()))
         .arguments(
-            BytesVecBuilder::default()
-                .push(Bytes::from(vec![1]))
-                .push(Bytes::from(vec![2]))
+            RecipeArgumentVec::new_builder()
+                .push(create_inline_argument(&vec![1]))
+                .push(create_inline_argument(&vec![2]))
                 .build()
         )
         .build();
