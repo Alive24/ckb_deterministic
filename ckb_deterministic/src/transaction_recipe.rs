@@ -6,6 +6,9 @@ use crate::cell_classifier::CellClassifier;
 /// 
 /// Method paths are calculated using Blake2b-256 hash (first 8 bytes as u64).
 /// 
+/// IMPORTANT: TransactionRecipe must be stored in the output_type field of a WitnessArgs structure.
+/// Direct storage of recipe bytes in witnesses is not supported.
+/// 
 /// # Examples
 /// 
 /// ## Using helper functions for flexible argument construction
@@ -47,7 +50,11 @@ use crate::generated::{
     Byte32, Byte32Vec, Byte32VecOpt, OutPoint, Uint32, RecipeArgument, RecipeArgumentVec
 };
 use crate::transaction_context::TransactionContext;
-use ckb_std::{high_level, ckb_constants::Source};
+use ckb_std::{
+    high_level, 
+    ckb_constants::Source,
+    ckb_types::{packed::WitnessArgs, prelude::*},
+};
 use ckb_hash::blake2b_256;
 extern crate alloc;
 use alloc::{vec::Vec, string::String};
@@ -200,7 +207,7 @@ pub fn create_transaction_recipe(method_name: &str, arguments: &[Vec<u8>]) -> Re
 }
 
 /// Parse transaction recipe from any witness position
-/// Searches through all witnesses and returns the first valid TransactionRecipe found
+/// Extracts recipe from WitnessArgs output_type field
 pub fn parse_transaction_recipe() -> Result<Option<TransactionRecipe>, Error> {
     let mut index = 0;
     
@@ -208,18 +215,18 @@ pub fn parse_transaction_recipe() -> Result<Option<TransactionRecipe>, Error> {
     loop {
         match high_level::load_witness(index, Source::Input) {
             Ok(data) => {
-                // Try to parse this witness as a TransactionRecipe
-                match TransactionRecipe::from_slice(&data) {
-                    Ok(recipe) => {
-                        // Found a valid recipe, return it
-                        return Ok(Some(recipe));
-                    }
-                    Err(_) => {
-                        // Not a valid recipe, continue searching
-                        index += 1;
-                        continue;
+                // Parse as WitnessArgs and get recipe from output_type
+                if let Ok(witness_args) = WitnessArgs::from_slice(&data) {
+                    if let Some(output_type) = witness_args.output_type().to_opt() {
+                        // Try to parse the output_type as TransactionRecipe
+                        if let Ok(recipe) = TransactionRecipe::from_slice(&output_type.raw_data()) {
+                            return Ok(Some(recipe));
+                        }
                     }
                 }
+                
+                // Continue searching
+                index += 1;
             }
             Err(_) => {
                 // No more witnesses to check
@@ -233,25 +240,45 @@ pub fn parse_transaction_recipe() -> Result<Option<TransactionRecipe>, Error> {
 }
 
 /// Parse transaction recipe from a specific witness index
+/// Extracts recipe from WitnessArgs output_type field
 pub fn parse_transaction_recipe_at(index: usize) -> Result<Option<TransactionRecipe>, Error> {
     let witness_data = high_level::load_witness(index, Source::Input)
         .map_err(|_| Error::DataError)?;
     
-    match TransactionRecipe::from_slice(&witness_data) {
-        Ok(recipe) => Ok(Some(recipe)),
-        Err(_) => Ok(None),
+    // Parse as WitnessArgs and get recipe from output_type
+    if let Ok(witness_args) = WitnessArgs::from_slice(&witness_data) {
+        if let Some(output_type) = witness_args.output_type().to_opt() {
+            // Try to parse the output_type as TransactionRecipe
+            if let Ok(recipe) = TransactionRecipe::from_slice(&output_type.raw_data()) {
+                return Ok(Some(recipe));
+            }
+        }
     }
+    
+    // No recipe found in WitnessArgs output_type
+    Ok(None)
 }
 
 /// Parse transaction recipe from specific witness data
+/// Extracts recipe from WitnessArgs output_type field
 pub fn parse_transaction_recipe_from_data(data: &[u8]) -> Result<Option<TransactionRecipe>, Error> {
-    match TransactionRecipe::from_slice(data) {
-        Ok(recipe) => Ok(Some(recipe)),
-        Err(_) => Ok(None),
+    // Parse as WitnessArgs and get recipe from output_type
+    if let Ok(witness_args) = WitnessArgs::from_slice(data) {
+        if let Some(output_type) = witness_args.output_type().to_opt() {
+            // Try to parse the output_type as TransactionRecipe
+            if let Ok(recipe) = TransactionRecipe::from_slice(&output_type.raw_data()) {
+                return Ok(Some(recipe));
+            }
+        }
     }
+    
+    // No recipe found in WitnessArgs output_type
+    Ok(None)
 }
 
-/// Serialize a transaction recipe to bytes for witness data
+/// Serialize a transaction recipe to raw bytes
+/// Note: This returns raw recipe bytes. When used in witnesses, these bytes
+/// should be placed in the output_type field of a WitnessArgs structure.
 pub fn serialize_transaction_recipe(recipe: &TransactionRecipe) -> Vec<u8> {
     recipe.as_slice().to_vec()
 }
@@ -666,11 +693,20 @@ mod tests {
         let args = vec![b"vault_id".to_vec(), b"amount".to_vec()];
         let recipe = create_transaction_recipe("Vault.withdraw", &args).unwrap();
         
-        // Serialize
-        let serialized = serialize_transaction_recipe(&recipe);
+        // Serialize recipe to raw bytes
+        let recipe_bytes = serialize_transaction_recipe(&recipe);
         
-        // Deserialize
-        let deserialized = parse_transaction_recipe_from_data(&serialized).unwrap().unwrap();
+        // Create WitnessArgs with recipe in output_type field
+        use ckb_std::ckb_types::{packed::BytesOpt, prelude::*};
+        let witness_args = WitnessArgs::new_builder()
+            .output_type(BytesOpt::new_builder().set(Some(recipe_bytes.pack())).build())
+            .build();
+        
+        // Serialize WitnessArgs
+        let witness_data = witness_args.as_bytes();
+        
+        // Deserialize - should extract recipe from WitnessArgs
+        let deserialized = parse_transaction_recipe_from_data(&witness_data).unwrap().unwrap();
         
         assert_eq!(deserialized.method_path_name().unwrap(), "Vault.withdraw");
         let result_args = deserialized.arguments_vec();
