@@ -52,12 +52,13 @@ use crate::generated::{
 use crate::transaction_context::TransactionContext;
 use ckb_std::{
     high_level, 
+    high_level::decode_hex,
     ckb_constants::Source,
     ckb_types::{packed::WitnessArgs, prelude::*},
 };
 use ckb_hash::blake2b_256;
 extern crate alloc;
-use alloc::{vec::Vec, string::String};
+use alloc::{vec::Vec, string::String, ffi};
 use molecule::prelude::*;
 use molecule::prelude::Byte;
 use core::{
@@ -762,5 +763,138 @@ mod tests {
         // Test header deps
         let hdeps = recipe.header_deps().to_opt().unwrap();
         assert_eq!(hdeps.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_witness_with_recipe() {
+        // Your witness data as hex string
+        let witness_hex = "670000001000000010000000100000005300000053000000140000003600000053000000530000001e000000434b426f6f737450726f746f636f6c2e75706461746550726f746f636f6c1d00000008000000150000000c0000000d000000020400000000000000";
+        
+        // Convert hex to bytes using ckb-std
+        let hex_cstr = ffi::CString::new(witness_hex).unwrap();
+        let witness_bytes = decode_hex(&hex_cstr).unwrap();
+        
+        // Try to parse the witness data
+        let result = parse_transaction_recipe_from_data(&witness_bytes);
+        
+        match result {
+            Ok(Some(recipe)) => {
+                // Successfully parsed the recipe
+                println!("Method path: {:?}", recipe.method_path_name());
+                println!("Method path bytes: {:?}", recipe.method_path_bytes());
+                println!("Arguments count: {}", recipe.arguments().len());
+                
+                // Check method path
+                assert_eq!(recipe.method_path_name().unwrap(), "CKBoostProtocol.updateProtocol");
+                
+                // Check arguments
+                let args = recipe.arguments();
+                assert_eq!(args.len(), 1);
+                
+                // Get the first argument
+                if let Some(arg) = args.get(0) {
+                    let arg_type = arg.arg_type().as_slice()[0];
+                    println!("Argument type: {}", arg_type);
+                    
+                    // Should be output_data_reference (type 2)
+                    assert_eq!(arg_type, 2);
+                    
+                    // Get the reference index
+                    let data = arg.data().raw_data();
+                    if data.len() >= 4 {
+                        let index = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
+                        println!("Reference index: {}", index);
+                        println!("Raw data bytes: {:?}", data);
+                        // The actual index is 0, not 4
+                        assert_eq!(index, 0);
+                    }
+                }
+            }
+            Ok(None) => {
+                panic!("No recipe found in witness data");
+            }
+            Err(e) => {
+                panic!("Failed to parse recipe: {:?}", e);
+            }
+        }
+    }
+    
+    #[test]
+    fn test_create_recipe_with_output_reference() {
+        // Create a recipe matching the witness data structure
+        let recipe = create_recipe_with_args(
+            "CKBoostProtocol.updateProtocol",
+            vec![create_output_data_reference(4)]
+        ).unwrap();
+        
+        // Verify the recipe structure
+        assert_eq!(recipe.method_path_name().unwrap(), "CKBoostProtocol.updateProtocol");
+        assert_eq!(recipe.arguments().len(), 1);
+        
+        // Verify the argument
+        let arg = recipe.arguments().get(0).unwrap();
+        assert_eq!(arg.arg_type().as_slice()[0], 2); // output_data_reference
+        
+        // Verify the index
+        let data = arg.data().raw_data();
+        let index = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
+        assert_eq!(index, 4);
+        
+        // Serialize to check the structure
+        let recipe_bytes = serialize_transaction_recipe(&recipe);
+        
+        // Create WitnessArgs with recipe in output_type
+        use ckb_std::ckb_types::{packed::BytesOpt, prelude::*};
+        let witness_args = WitnessArgs::new_builder()
+            .output_type(BytesOpt::new_builder().set(Some(recipe_bytes.pack())).build())
+            .build();
+        
+        // Serialize and check we can parse it back
+        let witness_data = witness_args.as_bytes();
+        let parsed = parse_transaction_recipe_from_data(&witness_data).unwrap().unwrap();
+        
+        assert_eq!(parsed.method_path_name().unwrap(), "CKBoostProtocol.updateProtocol");
+    }
+    
+    #[test]
+    fn test_analyze_recipe_error() {
+        // Your witness data successfully parses, let's analyze what might cause RecipeError
+        let witness_hex = "670000001000000010000000100000005300000053000000140000003600000053000000530000001e000000434b426f6f737450726f746f636f6c2e75706461746550726f746f636f6c1d00000008000000150000000c0000000d000000020400000000000000";
+        let hex_cstr = ffi::CString::new(witness_hex).unwrap();
+        let witness_bytes = decode_hex(&hex_cstr).unwrap();
+        
+        let recipe = parse_transaction_recipe_from_data(&witness_bytes).unwrap().unwrap();
+        
+        println!("\n=== Recipe Analysis ===");
+        println!("Method: {}", recipe.method_path_name().unwrap());
+        println!("Arguments: {}", recipe.arguments().len());
+        
+        // The recipe references output data at index 0
+        let arg = recipe.arguments().get(0).unwrap();
+        let arg_type = arg.arg_type().as_slice()[0];
+        let index = u32::from_le_bytes(arg.data().raw_data()[0..4].try_into().unwrap());
+        
+        println!("Argument type: {} (output_data_reference)", arg_type);
+        println!("Referenced output index: {}", index);
+        
+        println!("\n=== Possible causes of RecipeError ===");
+        println!("1. Output cell at index {} might not exist in the transaction", index);
+        println!("2. The output cell at index {} might not have any data", index);
+        println!("3. The data at output index {} might be invalid for the expected format", index);
+        println!("4. The CKBoostProtocol.updateProtocol method might expect different arguments");
+        println!("5. Cell deps or header deps might be missing for this recipe");
+        
+        // Check if the recipe has any dependencies
+        if let Some(cell_deps) = recipe.cell_deps().to_opt() {
+            println!("\nCell dependencies: {} found", cell_deps.len());
+        } else {
+            println!("\nNo cell dependencies specified in recipe");
+        }
+        
+        if let Some(header_deps) = recipe.header_deps().to_opt() {
+            println!("Header dependencies: {} found", header_deps.len());
+        } else {
+            println!("No header dependencies specified in recipe");
+        }
     }
 }
