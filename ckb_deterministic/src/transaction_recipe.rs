@@ -785,7 +785,7 @@ mod tests {
                 println!("Arguments count: {}", recipe.arguments().len());
                 
                 // Check method path
-                assert_eq!(recipe.method_path_name().unwrap(), "CKBoostProtocol.updateProtocol");
+                assert_eq!(recipe.method_path_name().unwrap(), "CKBoostProtocol.update_protocol");
                 
                 // Check arguments
                 let args = recipe.arguments();
@@ -823,12 +823,12 @@ mod tests {
     fn test_create_recipe_with_output_reference() {
         // Create a recipe matching the witness data structure
         let recipe = create_recipe_with_args(
-            "CKBoostProtocol.updateProtocol",
+            "CKBoostProtocol.update_protocol",
             vec![create_output_data_reference(4)]
         ).unwrap();
         
         // Verify the recipe structure
-        assert_eq!(recipe.method_path_name().unwrap(), "CKBoostProtocol.updateProtocol");
+        assert_eq!(recipe.method_path_name().unwrap(), "CKBoostProtocol.update_protocol");
         assert_eq!(recipe.arguments().len(), 1);
         
         // Verify the argument
@@ -853,7 +853,7 @@ mod tests {
         let witness_data = witness_args.as_bytes();
         let parsed = parse_transaction_recipe_from_data(&witness_data).unwrap().unwrap();
         
-        assert_eq!(parsed.method_path_name().unwrap(), "CKBoostProtocol.updateProtocol");
+        assert_eq!(parsed.method_path_name().unwrap(), "CKBoostProtocol.update_protocol");
     }
     
     #[test]
