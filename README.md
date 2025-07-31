@@ -430,3 +430,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License.
+
+## Extra Notes
+
+Limitations on recipes when unidentified cells are not allowed might conflict with the SSRI intention to chain transactions. Will address this in the future.
