@@ -20,6 +20,9 @@ struct CellDep {
 }
 
 vector CellDepVec <CellDep>;
+
+/* ckb_deterministic Types */
+
 option CellDepVecOpt (CellDepVec);
 option Byte32VecOpt (Byte32Vec);
 
