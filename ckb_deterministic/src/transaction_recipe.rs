@@ -130,8 +130,9 @@ impl TransactionRecipeExt for TransactionRecipe {
         let mut result = Vec::new();
         
         for i in 0..args.len() {
-            if let Some(arg) = args.get(i) {
-                result.push(arg.data().raw_data().to_vec());
+            match args.get(i) {
+                Some(arg) => result.push(arg.data().raw_data().to_vec()),
+                None => {}
             }
         }
         
@@ -217,13 +218,20 @@ pub fn parse_transaction_recipe() -> Result<Option<TransactionRecipe>, Error> {
         match high_level::load_witness(index, Source::Input) {
             Ok(data) => {
                 // Parse as WitnessArgs and get recipe from output_type
-                if let Ok(witness_args) = WitnessArgs::from_slice(&data) {
-                    if let Some(output_type) = witness_args.output_type().to_opt() {
-                        // Try to parse the output_type as TransactionRecipe
-                        if let Ok(recipe) = TransactionRecipe::from_slice(&output_type.raw_data()) {
-                            return Ok(Some(recipe));
+                match WitnessArgs::from_slice(&data) {
+                    Ok(witness_args) => {
+                        match witness_args.output_type().to_opt() {
+                            Some(output_type) => {
+                                // Try to parse the output_type as TransactionRecipe
+                                match TransactionRecipe::from_slice(&output_type.raw_data()) {
+                                    Ok(recipe) => return Ok(Some(recipe)),
+                                    Err(_) => {}
+                                }
+                            }
+                            None => {}
                         }
                     }
+                    Err(_) => {}
                 }
                 
                 // Continue searching
@@ -247,13 +255,20 @@ pub fn parse_transaction_recipe_at(index: usize) -> Result<Option<TransactionRec
         .map_err(|_| Error::DataError)?;
     
     // Parse as WitnessArgs and get recipe from output_type
-    if let Ok(witness_args) = WitnessArgs::from_slice(&witness_data) {
-        if let Some(output_type) = witness_args.output_type().to_opt() {
-            // Try to parse the output_type as TransactionRecipe
-            if let Ok(recipe) = TransactionRecipe::from_slice(&output_type.raw_data()) {
-                return Ok(Some(recipe));
+    match WitnessArgs::from_slice(&witness_data) {
+        Ok(witness_args) => {
+            match witness_args.output_type().to_opt() {
+                Some(output_type) => {
+                    // Try to parse the output_type as TransactionRecipe
+                    match TransactionRecipe::from_slice(&output_type.raw_data()) {
+                        Ok(recipe) => return Ok(Some(recipe)),
+                        Err(_) => {}
+                    }
+                }
+                None => {}
             }
         }
+        Err(_) => {}
     }
     
     // No recipe found in WitnessArgs output_type
@@ -264,13 +279,20 @@ pub fn parse_transaction_recipe_at(index: usize) -> Result<Option<TransactionRec
 /// Extracts recipe from WitnessArgs output_type field
 pub fn parse_transaction_recipe_from_data(data: &[u8]) -> Result<Option<TransactionRecipe>, Error> {
     // Parse as WitnessArgs and get recipe from output_type
-    if let Ok(witness_args) = WitnessArgs::from_slice(data) {
-        if let Some(output_type) = witness_args.output_type().to_opt() {
-            // Try to parse the output_type as TransactionRecipe
-            if let Ok(recipe) = TransactionRecipe::from_slice(&output_type.raw_data()) {
-                return Ok(Some(recipe));
+    match WitnessArgs::from_slice(data) {
+        Ok(witness_args) => {
+            match witness_args.output_type().to_opt() {
+                Some(output_type) => {
+                    // Try to parse the output_type as TransactionRecipe
+                    match TransactionRecipe::from_slice(&output_type.raw_data()) {
+                        Ok(recipe) => return Ok(Some(recipe)),
+                        Err(_) => {}
+                    }
+                }
+                None => {}
             }
         }
+        Err(_) => {}
     }
     
     // No recipe found in WitnessArgs output_type
@@ -583,7 +605,8 @@ pub fn create_transaction_recipe_with_deps(params: RecipeParams) -> Result<Trans
     let arguments = args_builder.build();
     
     // Build cell deps if provided
-    let cell_deps = if let Some(deps) = params.cell_deps {
+    let cell_deps = match params.cell_deps {
+        Some(deps) => {
         let mut deps_builder = CellDepVec::new_builder();
         for dep_param in deps {
             let tx_hash = Byte32::new_builder()
@@ -616,12 +639,13 @@ pub fn create_transaction_recipe_with_deps(params: RecipeParams) -> Result<Trans
         CellDepVecOpt::new_builder()
             .set(Some(deps_builder.build()))
             .build()
-    } else {
-        CellDepVecOpt::new_builder().build()
+    }
+        None => CellDepVecOpt::new_builder().build()
     };
     
     // Build header deps if provided
-    let header_deps = if let Some(deps) = params.header_deps {
+    let header_deps = match params.header_deps {
+        Some(deps) => {
         let mut deps_builder = Byte32Vec::new_builder();
         for hash in deps {
             let byte32 = Byte32::new_builder()
@@ -638,8 +662,8 @@ pub fn create_transaction_recipe_with_deps(params: RecipeParams) -> Result<Trans
         Byte32VecOpt::new_builder()
             .set(Some(deps_builder.build()))
             .build()
-    } else {
-        Byte32VecOpt::new_builder().build()
+    }
+        None => Byte32VecOpt::new_builder().build()
     };
     
     Ok(TransactionRecipe::new_builder()
@@ -792,22 +816,25 @@ mod tests {
                 assert_eq!(args.len(), 1);
                 
                 // Get the first argument
-                if let Some(arg) = args.get(0) {
-                    let arg_type = arg.arg_type().as_slice()[0];
-                    println!("Argument type: {}", arg_type);
-                    
-                    // Should be output_data_reference (type 2)
-                    assert_eq!(arg_type, 2);
-                    
-                    // Get the reference index
-                    let data = arg.data().raw_data();
-                    if data.len() >= 4 {
-                        let index = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
-                        println!("Reference index: {}", index);
-                        println!("Raw data bytes: {:?}", data);
-                        // The actual index is 0, not 4
-                        assert_eq!(index, 0);
+                match args.get(0) {
+                    Some(arg) => {
+                        let arg_type = arg.arg_type().as_slice()[0];
+                        println!("Argument type: {}", arg_type);
+                        
+                        // Should be output_data_reference (type 2)
+                        assert_eq!(arg_type, 2);
+                        
+                        // Get the reference index
+                        let data = arg.data().raw_data();
+                        if data.len() >= 4 {
+                            let index = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
+                            println!("Reference index: {}", index);
+                            println!("Raw data bytes: {:?}", data);
+                            // The actual index is 0, not 4
+                            assert_eq!(index, 0);
+                        }
                     }
+                    None => {}
                 }
             }
             Ok(None) => {
@@ -885,16 +912,14 @@ mod tests {
         println!("5. Cell deps or header deps might be missing for this recipe");
         
         // Check if the recipe has any dependencies
-        if let Some(cell_deps) = recipe.cell_deps().to_opt() {
-            println!("\nCell dependencies: {} found", cell_deps.len());
-        } else {
-            println!("\nNo cell dependencies specified in recipe");
+        match recipe.cell_deps().to_opt() {
+            Some(cell_deps) => println!("\nCell dependencies: {} found", cell_deps.len()),
+            None => println!("\nNo cell dependencies specified in recipe")
         }
         
-        if let Some(header_deps) = recipe.header_deps().to_opt() {
-            println!("Header dependencies: {} found", header_deps.len());
-        } else {
-            println!("No header dependencies specified in recipe");
+        match recipe.header_deps().to_opt() {
+            Some(header_deps) => println!("Header dependencies: {} found", header_deps.len()),
+            None => println!("No header dependencies specified in recipe")
         }
     }
 }

@@ -504,29 +504,32 @@ impl<'a> DepsExpectation<'a> {
     
     /// Assert that deps for a known script are present
     pub fn to_have_deps_for_script(self, script: KnownScript, network: Network) -> Result<(), Error> {
-        if let Some(script_info) = get_script_info(script, network) {
-            for (tx_hash_str, index, dep_type_u8) in &script_info.cell_deps {
-                // Convert hex string to bytes
-                let tx_hash = hex_to_bytes(tx_hash_str)
-                    .map_err(|_| Error::MissingCellDep)?;
-                let dep_type = match *dep_type_u8 {
-                    0 => DepType::Code,
-                    1 => DepType::DepGroup,
-                    _ => DepType::Code,
-                };
-                
-                let found = self.deps.iter().any(|dep| {
-                    dep.out_point.tx_hash == tx_hash && 
-                    dep.out_point.index == *index &&
-                    dep.dep_type == dep_type
-                });
-                
-                if !found {
-                    return Err(Error::MissingCellDep);
+        match get_script_info(script, network) {
+            Some(script_info) => {
+                for (tx_hash_str, index, dep_type_u8) in &script_info.cell_deps {
+                    // Convert hex string to bytes
+                    let tx_hash = hex_to_bytes(tx_hash_str)
+                        .map_err(|_| Error::MissingCellDep)?;
+                    let dep_type = match *dep_type_u8 {
+                        0 => DepType::Code,
+                        1 => DepType::DepGroup,
+                        _ => DepType::Code,
+                    };
+                    
+                    let found = self.deps.iter().any(|dep| {
+                        dep.out_point.tx_hash == tx_hash && 
+                        dep.out_point.index == *index &&
+                        dep.dep_type == dep_type
+                    });
+                    
+                    if !found {
+                        return Err(Error::MissingCellDep);
+                    }
                 }
+                Ok(())
             }
+            None => Ok(())
         }
-        Ok(())
     }
     
     /// Assert that the number of deps matches

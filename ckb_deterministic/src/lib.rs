@@ -6,6 +6,7 @@ extern crate std;
 
 pub mod assertions;
 pub mod cell_classifier;
+pub mod debug_utils;
 pub mod errors;
 pub mod known_scripts;
 pub mod generated;

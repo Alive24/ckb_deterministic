@@ -104,16 +104,17 @@ fn test_custom_predicate_classification() {
             "specific_token",
             |cell| {
                 // Check if it has specific type code hash and args
-                if let Some(type_script) = &cell.type_script {
-                    let code_hash = type_script.code_hash();
-                    let args = type_script.args();
-                    // args.pack() adds a 4-byte length prefix, so check with that included
-                    let expected_args = vec![0xAA, 0xBB, 0xCC, 0xDD].pack();
-                    let expected_args_bytes: ckb_std::ckb_types::packed::Bytes = expected_args;
-                    code_hash.as_slice() == &[5u8; 32] && 
-                    args.as_slice() == expected_args_bytes.as_slice()
-                } else {
-                    false
+                match &cell.type_script {
+                    Some(type_script) => {
+                        let code_hash = type_script.code_hash();
+                        let args = type_script.args();
+                        // args.pack() adds a 4-byte length prefix, so check with that included
+                        let expected_args = vec![0xAA, 0xBB, 0xCC, 0xDD].pack();
+                        let expected_args_bytes: ckb_std::ckb_types::packed::Bytes = expected_args;
+                        code_hash.as_slice() == &[5u8; 32] && 
+                        args.as_slice() == expected_args_bytes.as_slice()
+                    }
+                    None => false
                 }
             },
             CellClass::custom("specific_token"),

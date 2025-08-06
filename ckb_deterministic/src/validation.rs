@@ -72,20 +72,27 @@ impl CellCountConstraint {
 
     /// Check if a count satisfies this constraint
     pub fn is_satisfied_by(&self, count: usize) -> bool {
-        if let Some(exact) = self.exact {
-            return count == exact;
+        match self.exact {
+            Some(exact) => return count == exact,
+            None => {}
         }
 
-        if let Some(min) = self.min {
-            if count < min {
-                return false;
+        match self.min {
+            Some(min) => {
+                if count < min {
+                    return false;
+                }
             }
+            None => {}
         }
 
-        if let Some(max) = self.max {
-            if count > max {
-                return false;
+        match self.max {
+            Some(max) => {
+                if count > max {
+                    return false;
+                }
             }
+            None => {}
         }
 
         true
@@ -93,8 +100,9 @@ impl CellCountConstraint {
 
     /// Get a description of the constraint for error messages
     pub fn description(&self) -> String {
-        if let Some(exact) = self.exact {
-            return format!("exactly {}", exact);
+        match self.exact {
+            Some(exact) => return format!("exactly {}", exact),
+            None => {}
         }
 
         match (self.min, self.max) {
@@ -287,11 +295,14 @@ impl<C: CellClassifier> TransactionValidationRules<C> {
         }
 
         // Check arguments count
-        if let Some(expected_args) = self.expected_arguments {
-            let actual_args = context.recipe.arguments_vec().len();
-            if actual_args != expected_args {
-                return Err(Error::InvalidArgumentCount);
+        match self.expected_arguments {
+            Some(expected_args) => {
+                let actual_args = context.recipe.arguments_vec().len();
+                if actual_args != expected_args {
+                    return Err(Error::InvalidArgumentCount);
+                }
             }
+            None => {}
         }
 
         // Check cell type count rules
@@ -300,26 +311,29 @@ impl<C: CellClassifier> TransactionValidationRules<C> {
             let cell_type_str = &rule.cell_type;
             let (input_count, output_count) = 
                 // Check if it's a known cell type
-                if let Some(cells) = context.input_cells.get_known(cell_type_str) {
-                    (
-                        cells.len(),
-                        context
-                            .output_cells
-                            .get_known(cell_type_str)
-                            .map_or(0, |cells| cells.len()),
-                    )
-                } else {
-                    // Not a known cell, check custom cells
-                    (
-                        context
-                            .input_cells
-                            .get_custom(&rule.cell_type)
-                            .map_or(0, |cells| cells.len()),
-                        context
-                            .output_cells
-                            .get_custom(&rule.cell_type)
-                            .map_or(0, |cells| cells.len()),
-                    )
+                match context.input_cells.get_known(cell_type_str) {
+                    Some(cells) => {
+                        (
+                            cells.len(),
+                            context
+                                .output_cells
+                                .get_known(cell_type_str)
+                                .map_or(0, |cells| cells.len()),
+                        )
+                    }
+                    None => {
+                        // Not a known cell, check custom cells
+                        (
+                            context
+                                .input_cells
+                                .get_custom(&rule.cell_type)
+                                .map_or(0, |cells| cells.len()),
+                            context
+                                .output_cells
+                                .get_custom(&rule.cell_type)
+                                .map_or(0, |cells| cells.len()),
+                        )
+                    }
                 };
 
             if !rule.input_constraint.is_satisfied_by(input_count) {

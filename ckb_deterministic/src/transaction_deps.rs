@@ -172,8 +172,9 @@ impl CellDepVecExt for CellDepVec {
     fn to_info_vec(&self) -> Result<Vec<CellDepInfo>, Error> {
         let mut infos = Vec::new();
         for i in 0..self.len() {
-            if let Some(dep) = self.get(i) {
-                infos.push(dep.to_info()?);
+            match self.get(i) {
+                Some(dep) => infos.push(dep.to_info()?),
+                None => {}
             }
         }
         Ok(infos)
@@ -181,20 +182,23 @@ impl CellDepVecExt for CellDepVec {
     
     fn has_dep(&self, tx_hash: &[u8; 32], index: u32) -> bool {
         for i in 0..self.len() {
-            if let Some(dep) = self.get(i) {
-                let out_point = dep.out_point();
-                let raw_data = out_point.tx_hash().raw_data();
-                let mut hash_arr = [0u8; 32];
-                hash_arr.copy_from_slice(&raw_data);
-                let dep_tx_hash = hash_arr;
-                let index_raw = out_point.index().raw_data();
-                let mut index_arr = [0u8; 4];
-                index_arr.copy_from_slice(&index_raw);
-                let dep_index = u32::from_le_bytes(index_arr);
-                
-                if &dep_tx_hash == tx_hash && dep_index == index {
-                    return true;
+            match self.get(i) {
+                Some(dep) => {
+                    let out_point = dep.out_point();
+                    let raw_data = out_point.tx_hash().raw_data();
+                    let mut hash_arr = [0u8; 32];
+                    hash_arr.copy_from_slice(&raw_data);
+                    let dep_tx_hash = hash_arr;
+                    let index_raw = out_point.index().raw_data();
+                    let mut index_arr = [0u8; 4];
+                    index_arr.copy_from_slice(&index_raw);
+                    let dep_index = u32::from_le_bytes(index_arr);
+                    
+                    if &dep_tx_hash == tx_hash && dep_index == index {
+                        return true;
+                    }
                 }
+                None => {}
             }
         }
         false

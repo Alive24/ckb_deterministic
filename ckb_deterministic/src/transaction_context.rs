@@ -8,7 +8,7 @@ use crate::generated::TransactionRecipe;
 use crate::transaction_recipe::{self as recipe, TransactionRecipeExt};
 use crate::cell_classifier::{CellCollector, CellClassifier, ClassifiedCells};
 use crate::transaction_deps::{CellDepInfo, CellDepVecExt};
-use ckb_std::debug;
+use crate::{debug_info, debug_trace};
 extern crate alloc;
 use alloc::vec::Vec;
 #[cfg(feature = "native-simulator")]
@@ -33,50 +33,54 @@ pub struct TransactionContext<C: CellClassifier> {
 impl<C: CellClassifier> TransactionContext<C> {
     /// Create a transaction context by parsing recipe and collecting cells
     pub fn new(collector: CellCollector<C>) -> Result<Self, Error> {
-        debug!("Creating generic transaction context");
+        debug_trace!("Creating generic transaction context");
         
         // Parse transaction recipe from witness
         let recipe = match recipe::parse_transaction_recipe()? {
             Some(r) => r,
             None => {
-                debug!("No transaction recipe found in witness");
+                debug_info!("No transaction recipe found in witness");
                 return Err(Error::RecipeError);
             }
         };
         
-        debug!("Transaction recipe found");
+        debug_info!("Transaction recipe found");
         
         // Collect and classify cells
         let (input_cells, output_cells, cell_deps) = collector.collect_cells()?;
         
-        debug!("Input cells collected: {} total, {} unidentified", 
+        debug_info!("Input cells collected: {} total, {} unidentified", 
                input_cells.total_cell_count(), 
                input_cells.unidentified_cells.len());
-        debug!("Output cells collected: {} total, {} unidentified", 
+        debug_info!("Output cells collected: {} total, {} unidentified", 
                output_cells.total_cell_count(), 
                output_cells.unidentified_cells.len());
-        debug!("CellDep cells collected: {} total, {} unidentified", 
+        debug_info!("CellDep cells collected: {} total, {} unidentified", 
             cell_deps.total_cell_count(), 
             cell_deps.unidentified_cells.len());
 
                
         
-        let header_deps = if let Some(deps) = recipe.header_deps().to_opt() {
-            let mut hashes = Vec::new();
-            for i in 0..deps.len() {
-                if let Some(hash) = deps.get(i) {
-                    let raw_data = hash.raw_data();
-                    let mut hash_bytes = [0u8; 32];
-                    hash_bytes.copy_from_slice(&raw_data);
-                    hashes.push(hash_bytes);
+        let header_deps = match recipe.header_deps().to_opt() {
+            Some(deps) => {
+                let mut hashes = Vec::new();
+                for i in 0..deps.len() {
+                    match deps.get(i) {
+                        Some(hash) => {
+                            let raw_data = hash.raw_data();
+                            let mut hash_bytes = [0u8; 32];
+                            hash_bytes.copy_from_slice(&raw_data);
+                            hashes.push(hash_bytes);
+                        }
+                        None => {}
+                    }
                 }
+                hashes
             }
-            hashes
-        } else {
-            Vec::new()
+            None => Vec::new()
         };
         
-        debug!("Header deps count: {}", header_deps.len());
+        debug_info!("Header deps count: {}", header_deps.len());
         
         Ok(Self {
             recipe,
@@ -111,12 +115,12 @@ impl<C: CellClassifier> TransactionContext<C> {
     pub fn validate(&self) -> Result<(), Error> {
         // Check for unidentified cells (if collector was in strict mode, this should already be caught)
         if self.input_cells.has_unidentified_cells() || self.output_cells.has_unidentified_cells() {
-            debug!("Transaction context validation failed: unidentified cells detected");
+            debug_info!("Transaction context validation failed: unidentified cells detected");
             return Err(Error::UnidentifiedCells);
         }
         
         
-        debug!("Transaction context validation passed");
+        debug_info!("Transaction context validation passed");
         Ok(())
     }
     

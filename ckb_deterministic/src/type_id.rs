@@ -38,11 +38,11 @@
 extern crate alloc;
 
 use crate::errors::Error;
+use crate::{debug_info, debug_error};
 use alloc::vec::Vec;
 use blake2b_ref::Blake2bBuilder;
 use ckb_std::{
     ckb_constants::Source,
-    debug,
     error::SysError,
     high_level::{load_cell_type_hash, load_input, load_script, load_script_hash},
     syscalls::load_cell,
@@ -60,11 +60,13 @@ fn has_type_id_cell(index: usize, source: Source) -> bool {
         Err(e) => {
             // LengthNotEnough is expected when buffer is too small
             // but still indicates the cell exists
-            if let SysError::LengthNotEnough(_) = e {
-                return true;
+            match e {
+                SysError::LengthNotEnough(_) => return true,
+                _ => {
+                    debug_info!("load cell err: {:?}", e);
+                    false
+                }
             }
-            debug!("load cell err: {:?}", e);
-            false
         }
     }
 }
@@ -153,7 +155,7 @@ pub fn calculate_type_id(input: &[u8], output_index: usize) -> [u8; 32] {
 pub fn validate_type_id(type_id: [u8; 32]) -> Result<(), Error> {
     // Check for multiple Type ID cells
     if has_type_id_cell(1, Source::GroupInput) || has_type_id_cell(1, Source::GroupOutput) {
-        debug!("There can only be at most one input and at most one output type ID cell!");
+        debug_error!("There can only be at most one input and at most one output type ID cell!");
         return Err(Error::TypeIDMultipleCells);
     }
 
@@ -169,9 +171,9 @@ pub fn validate_type_id(type_id: [u8; 32]) -> Result<(), Error> {
         let calculated_type_id = calculate_type_id(input.as_slice(), index);
 
         if calculated_type_id != type_id {
-            debug!("Invalid type ID!");
-            debug!("Calculated type ID: {:x?}", calculated_type_id);
-            debug!("Expected type ID: {:x?}", type_id);
+            debug_error!("Invalid type ID!");
+            debug_error!("Calculated type ID: {:x?}", calculated_type_id);
+            debug_error!("Expected type ID: {:x?}", type_id);
             return Err(Error::TypeIDMismatch);
         }
     }
@@ -207,7 +209,7 @@ pub fn load_type_id_from_script_args(offset: usize) -> Result<[u8; 32], Error> {
     let script = load_script()?;
     let args = script.as_reader().args();
     if offset + 32 > args.raw_data().len() {
-        debug!("Length of type id is incorrect!");
+        debug_error!("Length of type id is incorrect!");
         return Err(Error::LengthNotEnough);
     }
     let mut ret = [0; 32];

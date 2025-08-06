@@ -214,8 +214,8 @@ let rules = TransactionValidationRules::new(b"openVault".to_vec())
         vec!["vault".to_string()],
         |context| {
             // Access full transaction context
-            let inputs = context.input_cells.get_known("vault");
-            let outputs = context.output_cells.get_known("vault");
+            let inputs = context.input_cells.get_custom("vault");
+            let outputs = context.output_cells.get_custom("vault");
             // Validate using context.cell_deps, context.header_deps, etc.
             Ok(())
         }

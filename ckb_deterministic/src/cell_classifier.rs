@@ -17,7 +17,7 @@ use alloc::{
     string::String,
     vec::Vec,
 };
-use ckb_std::debug;
+use crate::{debug_info, debug_trace};
 
 use crate::known_scripts::KnownScript;
 
@@ -125,14 +125,15 @@ impl ClassificationRule {
                         }
                     }
             ClassificationRule::TypeCodeHash { code_hash, class } => {
-                        if let Some(type_script) = &cell.type_script {
-                            if type_script.code_hash().as_slice() == code_hash {
-                                Ok(Some(class.clone()))
-                            } else {
-                                Ok(None)
+                        match &cell.type_script {
+                            Some(type_script) => {
+                                if type_script.code_hash().as_slice() == code_hash {
+                                    Ok(Some(class.clone()))
+                                } else {
+                                    Ok(None)
+                                }
                             }
-                        } else {
-                            Ok(None)
+                            None => Ok(None)
                         }
                     }
             ClassificationRule::LockHash { hash, class } => {
@@ -161,15 +162,16 @@ impl ClassificationRule {
             ClassificationRule::KnownScript { script, class } => {
                 // Check both type script and lock script based on the script type
                 if script.is_type_script() {
-                    if let Some(type_script) = &cell.type_script {
-                        let expected_code_hash = script.code_hash()?;
-                        if type_script.code_hash().as_slice() == expected_code_hash {
-                            Ok(Some(class.clone()))
-                        } else {
-                            Ok(None)
+                    match &cell.type_script {
+                        Some(type_script) => {
+                            let expected_code_hash = script.code_hash()?;
+                            if type_script.code_hash().as_slice() == expected_code_hash {
+                                Ok(Some(class.clone()))
+                            } else {
+                                Ok(None)
+                            }
                         }
-                    } else {
-                        Ok(None)
+                        None => Ok(None)
                     }
                 } else if script.is_lock_script() {
                     let expected_code_hash = script.code_hash()?;
@@ -296,8 +298,9 @@ impl CellClassifier for RuleBasedClassifier {
         
         // Evaluate rules in order until we find a match
         for rule in &self.rules {
-            if let Some(class) = rule.matches(cell)? {
-                return Ok(class);
+            match rule.matches(cell)? {
+                Some(class) => return Ok(class),
+                None => {}
             }
         }
         Ok(CellClass::Unidentified)
@@ -364,6 +367,14 @@ impl ClassifiedCells {
     /// Check if there are any unidentified cells
     pub fn has_unidentified_cells(&self) -> bool {
         !self.unidentified_cells.is_empty()
+    }
+
+    /// Check if the collection is empty (no cells of any type)
+    pub fn is_empty(&self) -> bool {
+        self.simple_ckb_cells.is_empty()
+            && self.known_cells.is_empty()
+            && self.custom_cells.is_empty()
+            && self.unidentified_cells.is_empty()
     }
 
     /// Get total count of all cells
@@ -481,7 +492,7 @@ impl<C: CellClassifier> CellCollector<C> {
         &self,
         source: Source,
     ) -> Result<ClassifiedCells, crate::errors::Error> {
-        debug!(
+        debug_trace!(
             "Collecting cells from source: {:?} using classifier: {}",
             source,
             self.classifier.name()
@@ -493,13 +504,13 @@ impl<C: CellClassifier> CellCollector<C> {
             let cell_info = self.load_cell_info(source, index, data)?;
             let classification = self.classifier.classify(&cell_info)?;
 
-            debug!("Cell {} classified as: {:?}", index, classification);
+            debug_info!("Cell {} classified as: {:?}", index, classification);
             classified.add_cell(cell_info, classification);
 
             index += 1;
         }
 
-        debug!(
+        debug_info!(
             "Collected {} total cells, {} unidentified",
             classified.total_cell_count(),
             classified.unidentified_cells.len()
@@ -507,7 +518,7 @@ impl<C: CellClassifier> CellCollector<C> {
 
         // In strict mode, reject transactions with unidentified cells
         if self.strict_mode && classified.has_unidentified_cells() {
-            debug!(
+            debug_info!(
                 "Strict mode: rejecting transaction due to {} unidentified cells",
                 classified.unidentified_cells.len()
             );
@@ -622,7 +633,7 @@ mod tests {
         };
 
         cells.add_cell(cell, CellClass::known("protocol"));
-        assert_eq!(cells.get_known("protocol").unwrap().len(), 1);
+        assert_eq!(cells.get_custom("protocol").unwrap().len(), 1);
         assert_eq!(cells.total_cell_count(), 1);
         assert!(!cells.has_unidentified_cells());
     }

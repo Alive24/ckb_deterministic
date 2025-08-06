@@ -61,12 +61,14 @@ fn example_xudt_transfer_with_deps() -> Result<(), Box<dyn std::error::Error>> {
     println!("Created recipe for: {}", recipe.method_path_name()?);
     println!("Arguments count: {}", recipe.arguments_vec().len());
     
-    if let Some(deps) = recipe.cell_deps().to_opt() {
-        println!("Cell deps count: {}", deps.len());
+    match recipe.cell_deps().to_opt() {
+        Some(deps) => println!("Cell deps count: {}", deps.len()),
+        None => {}
     }
     
-    if let Some(deps) = recipe.header_deps().to_opt() {
-        println!("Header deps count: {}", deps.len());
+    match recipe.header_deps().to_opt() {
+        Some(deps) => println!("Header deps count: {}", deps.len()),
+        None => {}
     }
     
     Ok(())
@@ -203,15 +205,21 @@ fn example_complete_transaction() -> Result<(), Box<dyn std::error::Error>> {
         println!("    [{}]: {} bytes", i, arg.len());
     }
     
-    if let Some(deps) = recipe.cell_deps().to_opt() {
-        println!("  Cell Dependencies: {}", deps.len());
-        use ckb_deterministic::transaction_deps::CellDepExt;
-        for i in 0..deps.len() {
-            if let Some(dep) = deps.get(i) {
-                let dep_type = if dep.is_code() { "code" } else { "dep_group" };
-                println!("    [{}]: type={}", i, dep_type);
+    match recipe.cell_deps().to_opt() {
+        Some(deps) => {
+            println!("  Cell Dependencies: {}", deps.len());
+            use ckb_deterministic::transaction_deps::CellDepExt;
+            for i in 0..deps.len() {
+                match deps.get(i) {
+                    Some(dep) => {
+                        let dep_type = if dep.is_code() { "code" } else { "dep_group" };
+                        println!("    [{}]: type={}", i, dep_type);
+                    }
+                    None => {}
+                }
             }
         }
+        None => {}
     }
     
     Ok(())
@@ -219,18 +227,21 @@ fn example_complete_transaction() -> Result<(), Box<dyn std::error::Error>> {
 
 fn main() {
     println!("=== Example 1: xUDT Transfer with Dependencies ===");
-    if let Err(e) = example_xudt_transfer_with_deps() {
-        eprintln!("Error: {}", e);
+    match example_xudt_transfer_with_deps() {
+        Err(e) => eprintln!("Error: {}", e),
+        Ok(_) => {}
     }
     
     println!("\n=== Example 2: Dep Group Information ===");
-    if let Err(e) = example_dep_group_expansion() {
-        eprintln!("Error: {}", e);
+    match example_dep_group_expansion() {
+        Err(e) => eprintln!("Error: {}", e),
+        Ok(_) => {}
     }
     
     println!("\n=== Example 3: Complete Transaction Recipe ===");
-    if let Err(e) = example_complete_transaction() {
-        eprintln!("Error: {}", e);
+    match example_complete_transaction() {
+        Err(e) => eprintln!("Error: {}", e),
+        Ok(_) => {}
     }
 }
 
