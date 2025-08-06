@@ -2,11 +2,11 @@
 ///
 /// This module provides a framework for defining and enforcing validation rules
 /// for different transaction types based on their method paths.
-use crate::cell_classifier::CellClassifier;
+use crate::cell_classifier::{CellClassifier, ClassifiedCells};
 use crate::errors::Error;
 use crate::known_scripts::{get_script_info, KnownScript, Network};
 use crate::transaction_context::TransactionContext;
-use crate::transaction_deps::{CellDepInfo, DepType};
+use crate::transaction_deps::{CellDepInfo, CellDepVecExt, DepType};
 use crate::transaction_recipe::TransactionRecipeExt;
 extern crate alloc;
 use alloc::string::{String, ToString};
@@ -155,12 +155,6 @@ pub struct TransactionValidationRules<C: CellClassifier> {
     pub business_rules: Vec<ValidationRule<C>>,
     /// Additional rules
     pub additional_rules: Vec<ValidationRule<C>>,
-    /// Required cell dependencies
-    pub required_cell_deps: Vec<RequiredDep>,
-    /// Required header dependencies
-    pub required_header_deps: Vec<[u8; 32]>,
-    /// Automatically validate known script dependencies
-    pub auto_validate_known_scripts: bool,
     /// Network for known script validation
     pub network: Network,
 }
@@ -176,9 +170,6 @@ impl<C: CellClassifier> TransactionValidationRules<C> {
             business_rules: Vec::new(),
             additional_rules: Vec::new(),
             allow_unidentified: false,
-            required_cell_deps: Vec::new(),
-            required_header_deps: Vec::new(),
-            auto_validate_known_scripts: false,
             network: Network::Mainnet,
         }
     }
@@ -278,33 +269,6 @@ impl<C: CellClassifier> TransactionValidationRules<C> {
         self
     }
 
-    /// Add a required cell dependency
-    pub fn with_required_cell_dep(
-        mut self,
-        tx_hash: [u8; 32],
-        index: u32,
-        dep_type: DepType,
-    ) -> Self {
-        self.required_cell_deps.push(RequiredDep {
-            tx_hash,
-            index,
-            dep_type,
-        });
-        self
-    }
-
-    /// Add a required header dependency
-    pub fn with_required_header_dep(mut self, header_hash: [u8; 32]) -> Self {
-        self.required_header_deps.push(header_hash);
-        self
-    }
-
-    /// Enable automatic validation of known script dependencies
-    pub fn with_auto_known_script_validation(mut self) -> Self {
-        self.auto_validate_known_scripts = true;
-        self
-    }
-
     /// Set the network for known script validation
     pub fn with_network(mut self, network: Network) -> Self {
         self.network = network;
@@ -392,79 +356,8 @@ impl<C: CellClassifier> TransactionValidationRules<C> {
             (additional_rule.predicate)(context)?;
         }
 
-        // Validate required cell dependencies
-        for required_dep in &self.required_cell_deps {
-            let found = context.cell_deps.iter().any(|dep| {
-                dep.out_point.tx_hash == required_dep.tx_hash
-                    && dep.out_point.index == required_dep.index
-                    && dep.dep_type == required_dep.dep_type
-            });
-
-            if !found {
-                return Err(Error::MissingCellDep);
-            }
-        }
-
-        // Validate required header dependencies
-        for required_header in &self.required_header_deps {
-            if !context.header_deps.contains(required_header) {
-                return Err(Error::MissingHeaderDep);
-            }
-        }
-
-        // Auto-validate known script dependencies if enabled
-        if self.auto_validate_known_scripts {
-            // Check all known cells in inputs and outputs
-            for (script_name, _cells) in &context.input_cells.known_cells {
-                if let Some(script) = KnownScript::all()
-                    .iter()
-                    .find(|s| s.identifier() == script_name)
-                {
-                    self.validate_known_script_deps(*script, &context.cell_deps)?;
-                }
-            }
-            for (script_name, _cells) in &context.output_cells.known_cells {
-                if let Some(script) = KnownScript::all()
-                    .iter()
-                    .find(|s| s.identifier() == script_name)
-                {
-                    self.validate_known_script_deps(*script, &context.cell_deps)?;
-                }
-            }
-        }
-
         // All validation rules have been applied
 
-        Ok(())
-    }
-
-    /// Helper to validate dependencies for a known script
-    fn validate_known_script_deps(
-        &self,
-        script: KnownScript,
-        cell_deps: &[CellDepInfo],
-    ) -> Result<(), Error> {
-        if let Some(script_info) = get_script_info(script, self.network) {
-            for (tx_hash_str, index, dep_type_u8) in &script_info.cell_deps {
-                // Convert hex string to bytes
-                let tx_hash = hex_to_bytes(tx_hash_str)?;
-                let dep_type = match *dep_type_u8 {
-                    0 => DepType::Code,
-                    1 => DepType::DepGroup,
-                    _ => DepType::Code,
-                };
-
-                let found = cell_deps.iter().any(|dep| {
-                    dep.out_point.tx_hash == tx_hash
-                        && dep.out_point.index == *index
-                        && dep.dep_type == dep_type
-                });
-
-                if !found {
-                    return Err(Error::MissingCellDep);
-                }
-            }
-        }
         Ok(())
     }
 }

@@ -4,11 +4,11 @@
 #[cfg(any(feature = "library", test))]
 extern crate alloc;
 
-use ckb_std::debug;
 use ckb_deterministic::known_scripts::Network;
 use ckb_deterministic::cell_classifier::CellCollector;
 use ckb_deterministic::transaction_context::TransactionContext;
 use ckb_deterministic::transaction_recipe::TransactionRecipeExt;
+use ckb_deterministic::{debug_info, debug_error, debug_trace};
 
 #[cfg(not(any(feature = "library", test)))]
 ckb_std::entry!(program_entry);
@@ -26,6 +26,9 @@ mod recipes;
 use deterministic_cdp_shared::create_cdp_classifier;
 use deterministic_cdp_shared::Error;
 
+// Contract identifier for enhanced debug output
+const CONTRACT_NAME: &str = "CDP_VAULT";
+
 #[cfg(any(feature = "library", test))]
 fn main() -> i8 {
     match program_entry_wrap() {
@@ -35,6 +38,8 @@ fn main() -> i8 {
 }
 
 fn program_entry_wrap() -> Result<(), Error> {
+    debug_trace!("ENTER program_entry_wrap");
+    
     // Get code hashes from environment or use defaults for testing
     // In production, these would be loaded from protocol cells
     let vault_code_hash = [1u8; 32]; // Example vault code hash
@@ -56,27 +61,30 @@ fn program_entry_wrap() -> Result<(), Error> {
     // Get method path from recipe to determine which validation rules to apply
     let method_path = context.recipe.method_path_bytes();
     
+    // Log the method path for debugging
+    debug_info!("method_path" => &method_path);
+    
     // Apply the appropriate validation rules based on method path
     match method_path.as_slice() {
         b"openVault" => {
-            debug!("Validating openVault transaction");
+            debug_info!(CONTRACT_NAME, "Validating openVault transaction");
             recipes::open_vault::get_rules().validate(&context)?;
         }
         b"closeVault" => {
-            debug!("Validating closeVault transaction");
+            debug_info!("Validating closeVault transaction");
             recipes::close_vault::get_rules().validate(&context)?;
         }
         b"adjustVault" => {
-            debug!("Validating adjustVault transaction");
+            debug_info!("Validating adjustVault transaction");
             recipes::adjust_vault::get_rules().validate(&context)?;
         }
         _ => {
-            debug!("Unknown method path: {:?}", method_path);
+            debug_error!("Unknown method path: {:?}", method_path);
             return Err(Error::WrongMethodPath);
         }
     }
     
-    debug!("Transaction validation passed");
+    debug_info!("Transaction validation passed");
     
     Ok(())
 }
@@ -85,7 +93,7 @@ pub fn program_entry() -> i8 {
     match program_entry_wrap() {
         Ok(_) => 0,
         Err(err) => {
-            debug!("Contract execution failed with error: {:?}", err);
+            debug_error!("Contract execution failed: {:?}", err);
             err as i8
         }
     }

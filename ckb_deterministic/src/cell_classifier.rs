@@ -518,12 +518,13 @@ impl<C: CellClassifier> CellCollector<C> {
     }
 
     /// Collect and classify cells from both input and output sources
-    pub fn collect_inputs_and_outputs(
+    pub fn collect_cells(
         &self,
-    ) -> Result<(ClassifiedCells, ClassifiedCells), crate::errors::Error> {
+    ) -> Result<(ClassifiedCells, ClassifiedCells, ClassifiedCells), crate::errors::Error> {
         let inputs = self.collect_from_source(Source::Input)?;
         let outputs = self.collect_from_source(Source::Output)?;
-        Ok((inputs, outputs))
+        let cell_deps = self.collect_from_source(Source::CellDep)?;
+        Ok((inputs, outputs, cell_deps))
     }
 
     /// Load complete cell information

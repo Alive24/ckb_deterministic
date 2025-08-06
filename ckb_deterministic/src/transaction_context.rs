@@ -25,7 +25,7 @@ pub struct TransactionContext<C: CellClassifier> {
     pub recipe: TransactionRecipe,
     pub input_cells: ClassifiedCells,
     pub output_cells: ClassifiedCells,
-    pub cell_deps: Vec<CellDepInfo>,
+    pub cell_deps: ClassifiedCells,
     pub header_deps: Vec<[u8; 32]>,
     _phantom: core::marker::PhantomData<C>,
 }
@@ -47,7 +47,7 @@ impl<C: CellClassifier> TransactionContext<C> {
         debug!("Transaction recipe found");
         
         // Collect and classify cells
-        let (input_cells, output_cells) = collector.collect_inputs_and_outputs()?;
+        let (input_cells, output_cells, cell_deps) = collector.collect_cells()?;
         
         debug!("Input cells collected: {} total, {} unidentified", 
                input_cells.total_cell_count(), 
@@ -55,13 +55,11 @@ impl<C: CellClassifier> TransactionContext<C> {
         debug!("Output cells collected: {} total, {} unidentified", 
                output_cells.total_cell_count(), 
                output_cells.unidentified_cells.len());
-        
-        // Extract cell deps and header deps from recipe if present
-        let cell_deps = if let Some(deps) = recipe.cell_deps().to_opt() {
-            deps.to_info_vec()?
-        } else {
-            Vec::new()
-        };
+        debug!("CellDep cells collected: {} total, {} unidentified", 
+            cell_deps.total_cell_count(), 
+            cell_deps.unidentified_cells.len());
+
+               
         
         let header_deps = if let Some(deps) = recipe.header_deps().to_opt() {
             let mut hashes = Vec::new();
@@ -78,7 +76,6 @@ impl<C: CellClassifier> TransactionContext<C> {
             Vec::new()
         };
         
-        debug!("Cell deps count: {}", cell_deps.len());
         debug!("Header deps count: {}", header_deps.len());
         
         Ok(Self {
@@ -97,7 +94,7 @@ impl<C: CellClassifier> TransactionContext<C> {
         recipe: TransactionRecipe,
         input_cells: ClassifiedCells,
         output_cells: ClassifiedCells,
-        cell_deps: Vec<CellDepInfo>,
+        cell_deps: ClassifiedCells,
         header_deps: Vec<[u8; 32]>,
     ) -> Self {
         Self {
@@ -133,7 +130,9 @@ impl<C: CellClassifier> TransactionContext<C> {
             output_known_cells: self.output_cells.known_cells.len(),
             output_custom_cells: self.output_cells.custom_cells.len(),
             output_unidentified_cells: self.output_cells.unidentified_cells.len(),
-            cell_deps_count: self.cell_deps.len(),
+            cell_deps_known_cells: self.cell_deps.known_cells.len(),
+            cell_deps_custom_cells: self.cell_deps.custom_cells.len(),
+            cell_deps_unidentified_cells: self.cell_deps.unidentified_cells.len(),
             header_deps_count: self.header_deps.len(),
         }
     }
@@ -149,7 +148,9 @@ pub struct TransactionSummary {
     pub output_known_cells: usize,
     pub output_custom_cells: usize,
     pub output_unidentified_cells: usize,
-    pub cell_deps_count: usize,
+    pub cell_deps_known_cells: usize,
+    pub cell_deps_custom_cells: usize,
+    pub cell_deps_unidentified_cells: usize,
     pub header_deps_count: usize,
 }
 
@@ -205,14 +206,15 @@ mod tests {
             output_known_cells: 2,
             output_custom_cells: 1,
             output_unidentified_cells: 0,
-            cell_deps_count: 2,
             header_deps_count: 1,
+            cell_deps_known_cells: 1,
+            cell_deps_custom_cells: 2,
+            cell_deps_unidentified_cells: 3,
         };
         
         // Test that summary contains expected values
         assert_eq!(summary.argument_count, 3);
         assert_eq!(summary.input_known_cells, 2);
-        assert_eq!(summary.cell_deps_count, 2);
         assert_eq!(summary.header_deps_count, 1);
     }
     
