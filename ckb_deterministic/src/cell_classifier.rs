@@ -224,6 +224,14 @@ pub trait CellClassifier {
     fn priority(&self) -> u8 {
         100
     }
+    
+    /// Check if we should load data for a cell with this type code hash
+    /// Returns false for unrecognized types that might be depGroups
+    fn should_load_data_for_type(&self, type_code_hash: &[u8; 32]) -> bool {
+        // Default implementation: don't load data for unknown types
+        // Classifiers can override this to specify which types they recognize
+        false
+    }
 }
 
 /// Rule-based cell classifier using a list of classification rules
@@ -308,6 +316,26 @@ impl CellClassifier for RuleBasedClassifier {
 
     fn name(&self) -> &str {
         &self.name
+    }
+    
+    fn should_load_data_for_type(&self, type_code_hash: &[u8; 32]) -> bool {
+        // Check if any of our rules recognize this type code hash
+        for rule in &self.rules {
+            match rule {
+                ClassificationRule::TypeCodeHash { code_hash, .. } => {
+                    if code_hash == type_code_hash {
+                        // We recognize this type, so we should load its data
+                        return true;
+                    }
+                }
+                _ => {
+                    // Other rule types don't apply for this check
+                }
+            }
+        }
+        // We don't recognize this type, so don't load its data
+        // This is important for depGroups which don't have normal cell data
+        false
     }
 }
 
@@ -500,14 +528,79 @@ impl<C: CellClassifier> CellCollector<C> {
         let mut classified = ClassifiedCells::new();
         let mut index = 0;
 
-        while let Ok(data) = load_cell_data(index, source) {
-            let cell_info = self.load_cell_info(source, index, data)?;
-            let classification = self.classifier.classify(&cell_info)?;
+        // Special handling for CellDep source to avoid loading data from depGroups
+        if source == Source::CellDep {
+            // For CellDeps, we check the type script first to determine if we need to load data
+            // This avoids trying to load data from depGroups which causes memory allocation errors
+            loop {
+                // First check if the cell exists by trying to load its lock
+                match load_cell_lock(index, source) {
+                    Ok(lock) => {
+                        // Load the type script to check if this is a cell we care about
+                        let type_script = load_cell_type(index, source)?;
+                        
+                        // Check if this cell has a type script and if we recognize it
+                        let should_load_data = match type_script {
+                            Some(ref ts) => {
+                                // Check if the classifier recognizes this type script
+                                // This will be true for protocol, campaign, user cells etc.
+                                // but false for unknown types and importantly, depGroups
+                                let code_hash = ts.code_hash();
+                                let type_code_hash_slice = code_hash.as_slice();
+                                let mut type_code_hash = [0u8; 32];
+                                type_code_hash.copy_from_slice(type_code_hash_slice);
+                                self.classifier.should_load_data_for_type(&type_code_hash)
+                            }
+                            None => {
+                                // No type script, it's a simple CKB cell in CellDeps
+                                // We don't need to load data for simple cells in CellDeps
+                                false
+                            }
+                        };
+                        
+                        let data = if should_load_data {
+                            // Try to load data, but if it fails (shouldn't happen for known types),
+                            // use empty data
+                            load_cell_data(index, source).unwrap_or_else(|_| {
+                                debug_info!("Failed to load data for CellDep {} despite having recognized type", index);
+                                Vec::new()
+                            })
+                        } else {
+                            // Don't load data for unrecognized types or depGroups
+                            debug_info!("Skipping data load for CellDep {} (unrecognized or depGroup)", index);
+                            Vec::new()
+                        };
+                        
+                        match self.load_cell_info(source, index, data) {
+                            Ok(cell_info) => {
+                                let classification = self.classifier.classify(&cell_info)?;
+                                debug_info!("Cell {} classified as: {:?}", index, classification);
+                                classified.add_cell(cell_info, classification);
+                            }
+                            Err(e) => {
+                                debug_info!("Failed to load cell info for CellDep {}: {:?}", index, e);
+                                // Skip this cell and continue
+                            }
+                        }
+                        index += 1;
+                    }
+                    Err(_) => {
+                        // No more cells
+                        break;
+                    }
+                }
+            }
+        } else {
+            // For Input and Output sources, use the original logic
+            while let Ok(data) = load_cell_data(index, source) {
+                let cell_info = self.load_cell_info(source, index, data)?;
+                let classification = self.classifier.classify(&cell_info)?;
 
-            debug_info!("Cell {} classified as: {:?}", index, classification);
-            classified.add_cell(cell_info, classification);
+                debug_info!("Cell {} classified as: {:?}", index, classification);
+                classified.add_cell(cell_info, classification);
 
-            index += 1;
+                index += 1;
+            }
         }
 
         debug_info!(
