@@ -1,7 +1,37 @@
-/// Transaction dependencies (CellDep and HeaderDep) handling
-/// 
-/// This module provides functionality for working with CKB transaction dependencies
-/// including cell dependencies and header dependencies.
+//! Cell dependency management and resolution.
+//! 
+//! This module provides functionality for working with CKB transaction dependencies,
+//! including cell dependencies (CellDep) and header dependencies (HeaderDep).
+//! 
+//! # Key Components
+//! 
+//! - `CellDepInfo`: Information about a cell dependency
+//! - `OutPointInfo`: Identifies a specific cell output
+//! - `DepType`: Distinguishes between code cells and dep groups
+//! - `HeaderDepInfo`: Information about a header dependency
+//! 
+//! # Dep Groups
+//! 
+//! Dep groups are a CKB feature that allows multiple cell dependencies to be
+//! referenced through a single cell. This is useful for bundling related
+//! dependencies together.
+//! 
+//! # Example
+//! 
+//! ```no_run
+//! use ckb_deterministic::transaction_deps::{load_cell_deps, DepType};
+//! 
+//! // Load all cell dependencies from the current transaction
+//! let deps = load_cell_deps()?;
+//! 
+//! // Check for specific dependency types
+//! for dep in deps {
+//!     match dep.dep_type {
+//!         DepType::Code => println!("Code dependency"),
+//!         DepType::DepGroup => println!("Dep group with {} members", dep.resolved_deps.len()),
+//!     }
+//! }
+//! ```
 
 use crate::errors::Error;
 use crate::generated::{CellDep, CellDepVec};
@@ -18,11 +48,13 @@ use core::{
     result::Result,
 };
 
-/// Dep type constants
+/// Dep type constants for molecule encoding.
 pub const DEP_TYPE_CODE: u8 = 0;
 pub const DEP_TYPE_DEP_GROUP: u8 = 1;
 
-/// Load cell dependencies from a transaction
+/// Load all cell dependencies from the current transaction.
+/// 
+/// Iterates through all cell deps and collects their information.
 pub fn load_cell_deps() -> Result<Vec<CellDepInfo>, Error> {
     let mut cell_deps = Vec::new();
     let mut index = 0;
@@ -40,7 +72,9 @@ pub fn load_cell_deps() -> Result<Vec<CellDepInfo>, Error> {
     Ok(cell_deps)
 }
 
-/// Information about a cell dependency
+/// Information about a cell dependency.
+/// 
+/// Contains the outpoint, dependency type, and resolved members for dep groups.
 #[derive(Debug, Clone)]
 pub struct CellDepInfo {
     pub out_point: OutPointInfo,

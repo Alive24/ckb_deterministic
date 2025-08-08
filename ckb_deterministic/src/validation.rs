@@ -1,7 +1,37 @@
-/// Transaction validation rules and constraints
-///
-/// This module provides a framework for defining and enforcing validation rules
-/// for different transaction types based on their method paths.
+//! Declarative transaction validation framework.
+//! 
+//! This module provides a flexible framework for defining and enforcing validation rules
+//! for CKB transactions based on their method paths and cell types.
+//! 
+//! # Key Components
+//! 
+//! - `TransactionValidationRules`: Main rule container and validator
+//! - `CellCountConstraint`: Flexible constraints for cell counts
+//! - `CellCountRule`: Rules for specific cell types
+//! - Business rule functions for custom validation logic
+//! - Dependency validation for cell deps and header deps
+//! 
+//! # Example
+//! 
+//! ```no_run
+//! use ckb_deterministic::validation::{
+//!     TransactionValidationRules,
+//!     CellCountConstraint,
+//! };
+//! 
+//! let rules = TransactionValidationRules::new(b"Protocol.update".to_vec())
+//!     .with_arguments(2)  // Require exactly 2 arguments
+//!     .with_known_cell(
+//!         "xudt",
+//!         CellCountConstraint::at_least(1),  // At least 1 xUDT input
+//!         CellCountConstraint::any(),  // Any number of outputs
+//!     )
+//!     .with_custom_cell(
+//!         "vault",
+//!         CellCountConstraint::exactly(1),  // Exactly 1 vault input
+//!         CellCountConstraint::exactly(1),  // Exactly 1 vault output
+//!     );
+//! ```
 use crate::cell_classifier::CellClassifier;
 use crate::errors::Error;
 use crate::known_scripts::{KnownScript, Network};
@@ -13,7 +43,10 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::format;
 
-/// Cell count constraint for validation
+/// Cell count constraint for validation.
+/// 
+/// Provides flexible ways to specify how many cells of a certain type
+/// are allowed in inputs or outputs.
 #[derive(Debug, Clone, Copy)]
 pub struct CellCountConstraint {
     /// Minimum number of cells (inclusive)
@@ -25,7 +58,7 @@ pub struct CellCountConstraint {
 }
 
 impl CellCountConstraint {
-    /// Create a constraint for exactly n cells
+    /// Create a constraint requiring exactly n cells.
     pub fn exactly(n: usize) -> Self {
         Self {
             min: None,
@@ -34,7 +67,7 @@ impl CellCountConstraint {
         }
     }
 
-    /// Create a constraint for at least n cells
+    /// Create a constraint requiring at least n cells.
     pub fn at_least(n: usize) -> Self {
         Self {
             min: Some(n),
@@ -43,7 +76,7 @@ impl CellCountConstraint {
         }
     }
 
-    /// Create a constraint for at most n cells
+    /// Create a constraint requiring at most n cells.
     pub fn at_most(n: usize) -> Self {
         Self {
             min: None,

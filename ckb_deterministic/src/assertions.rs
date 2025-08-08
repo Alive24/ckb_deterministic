@@ -14,12 +14,29 @@ use crate::{
     known_scripts::{KnownScript, Network, get_script_info},
 };
 
-/// Main entry point for assertions - creates an expectation on a value
+/// Creates an expectation for fluent assertions.
+/// 
+/// # Example
+/// ```no_run
+/// use ckb_deterministic::assertions::expect;
+/// 
+/// expect(42).to_equal(42)?;
+/// expect("hello").not_to_equal("world")?;
+/// expect(100).to_be_greater_than(50)?;
+/// ```
 pub fn expect<T>(actual: T) -> Expectation<T> {
     Expectation { actual }
 }
 
-/// Direct assertion function for simple boolean checks
+/// Asserts that a condition is true.
+/// 
+/// # Arguments
+/// * `condition` - The boolean condition to check
+/// * `message` - Error message (currently unused but kept for API compatibility)
+/// 
+/// # Returns
+/// * `Ok(())` if the condition is true
+/// * `Err(Error::ExpectationViolation)` if the condition is false
 pub fn assert(condition: bool, _message: &str) -> Result<(), Error> {
     if condition {
         Ok(())
@@ -28,7 +45,20 @@ pub fn assert(condition: bool, _message: &str) -> Result<(), Error> {
     }
 }
 
-/// Assertion function that includes the actual value in the error message
+/// Asserts that two values are equal.
+/// 
+/// # Type Parameters
+/// * `T` - Type that implements Debug and PartialEq
+/// 
+/// # Arguments
+/// * `actual` - The actual value
+/// * `expected` - The expected value
+/// * `context` - Additional context for the error message (currently unused)
+/// 
+/// # Example
+/// ```no_run
+/// assert_eq(result, 42, "checking calculation result")?;
+/// ```
 pub fn assert_eq<T: core::fmt::Debug + PartialEq>(actual: T, expected: T, _context: &str) -> Result<(), Error> {
     if actual == expected {
         Ok(())
@@ -37,7 +67,10 @@ pub fn assert_eq<T: core::fmt::Debug + PartialEq>(actual: T, expected: T, _conte
     }
 }
 
-/// Wrapper for values being tested
+/// Wrapper for values being tested with fluent assertion methods.
+/// 
+/// Created by the `expect()` function, this struct provides a chainable
+/// interface for various assertion types.
 pub struct Expectation<T> {
     actual: T,
 }

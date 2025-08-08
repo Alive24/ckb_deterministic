@@ -1,6 +1,20 @@
+//! Error types for the CKB Deterministic framework.
+//! 
+//! This module defines all error types that can occur during contract execution,
+//! including CKB system errors, data parsing errors, and validation errors.
+
 extern crate alloc;
 
-/// Errors for the ckb_deterministic library
+/// Comprehensive error enum for all framework operations.
+/// 
+/// Error codes are designed to be returned as i8 exit codes from CKB contracts.
+/// Codes are grouped by category:
+/// - 1-9: CKB system errors
+/// - 10-19: Rust/encoding errors  
+/// - 20-29: Data and parsing errors
+/// - 30-39: Validation errors
+/// - 40-49: Type ID errors
+/// - 50-59: Assertion errors
 #[repr(i8)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error {

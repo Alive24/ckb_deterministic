@@ -1,7 +1,31 @@
-/// Universal Cell Classification System for CKB
-///
-/// This module provides a project-agnostic framework for classifying and collecting
-/// cells in CKB transactions. It's designed to work with any project, not just CKBoost.
+//! Universal Cell Classification System for CKB
+//!
+//! This module provides a flexible, project-agnostic framework for classifying and collecting
+//! cells in CKB transactions. It supports multiple classification strategies through the
+//! `CellClassifier` trait and includes a rule-based implementation for common use cases.
+//! 
+//! # Key Components
+//! 
+//! - `CellInfo`: Complete metadata for a cell including lock, type, and data
+//! - `CellClass`: Classification categories (SimpleCKB, Known, Custom, Unidentified)
+//! - `CellClassifier`: Trait for implementing classification logic
+//! - `RuleBasedClassifier`: Configurable classifier using rules
+//! - `CellCollector`: Utility for collecting and classifying cells from transactions
+//! 
+//! # Example
+//! 
+//! ```no_run
+//! use ckb_deterministic::cell_classifier::{RuleBasedClassifier, CellClass, CellCollector};
+//! 
+//! // Create a classifier with rules for your cell types
+//! let classifier = RuleBasedClassifier::new("MyProject")
+//!     .add_type_hash([10u8; 32], CellClass::known("xudt"))
+//!     .add_type_hash([20u8; 32], CellClass::custom("vault"));
+//! 
+//! // Collect cells from the transaction
+//! let collector = CellCollector::new(classifier);
+//! let (inputs, outputs, deps) = collector.collect_cells()?;
+//! ```
 use ckb_std::{
     ckb_constants::Source,
     ckb_types::{packed::Script, prelude::Entity},
@@ -21,7 +45,10 @@ use crate::{debug_info, debug_trace};
 
 use crate::known_scripts::KnownScript;
 
-/// Represents a cell with all its metadata
+/// Complete metadata for a CKB cell.
+/// 
+/// Contains all information needed for cell classification and validation,
+/// including script hashes for efficient comparison.
 #[derive(Debug, Clone)]
 pub struct CellInfo {
     pub source: Source,
@@ -33,7 +60,10 @@ pub struct CellInfo {
     pub type_hash: Option<[u8; 32]>,
 }
 
-/// Cell classification result - completely generic
+/// Classification categories for cells.
+/// 
+/// Cells can be categorized into predefined types for easier handling
+/// in transaction validation logic.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CellClass {
     /// Simple CKB cell (no type script)

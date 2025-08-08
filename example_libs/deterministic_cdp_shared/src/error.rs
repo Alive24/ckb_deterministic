@@ -1,9 +1,19 @@
-/// CDP-specific error types with detailed error codes
+//! CDP-specific error types.
+//! 
+//! This module defines error types specific to the CDP protocol,
+//! mapping errors from the deterministic framework to CDP-specific error codes.
+//! Each error has a unique i8 code for efficient on-chain error reporting.
 use ckb_deterministic::errors::Error as DeterministicError;
 extern crate alloc;
 
-/// Error codes for CDP contract
-/// Each error has a unique code for easier debugging
+/// Error codes for CDP contract.
+/// 
+/// Error codes are grouped by category:
+/// - 1-9: CKB system errors
+/// - 10-19: Rust/encoding errors
+/// - 20-29: CDP contract-specific errors
+/// - 30-39: Validation errors from deterministic framework
+/// - -1: Unknown/catch-all error
 #[repr(i8)]
 #[derive(Debug, PartialEq, Clone)]
 pub enum Error {

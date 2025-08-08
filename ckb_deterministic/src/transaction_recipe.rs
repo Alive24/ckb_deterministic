@@ -1,48 +1,57 @@
+//! Transaction recipe parsing and manipulation utilities.
+//! 
+//! This module provides functionality for working with transaction recipes
+//! according to the SSRI (Smart Script Recipe Interface) specification.
+//! Transaction recipes encode structured metadata about CKB transactions,
+//! including method paths, arguments, and dependencies.
+//! 
+//! # Key Concepts
+//! 
+//! - **Method Path**: Identifies the operation being performed (e.g., "Protocol.update")
+//! - **Arguments**: Can be inline data or references to cell/header data
+//! - **Dependencies**: Cell deps and header deps required for validation
+//! 
+//! Method paths are calculated using Blake2b-256 hash (first 8 bytes as u64).
+//! 
+//! **IMPORTANT**: TransactionRecipe must be stored in the output_type field of a WitnessArgs structure.
+//! Direct storage of recipe bytes in witnesses is not supported.
+//! 
+//! # Examples
+//! 
+//! ## Using helper functions for flexible argument construction
+//! 
+//! ```rust,no_run
+//! # use ckb_deterministic::errors::Error;
+//! # fn example() -> Result<(), Error> {
+//! use ckb_deterministic::transaction_recipe::{
+//!     create_inline_argument, create_output_data_reference, 
+//!     create_input_data_reference, create_cell_dep_data_reference,
+//!     create_recipe_with_args
+//! };
+//! 
+//! // Simple recipe with one output data reference
+//! let recipe = create_recipe_with_args(
+//!     "Protocol.update",
+//!     vec![create_output_data_reference(0)]
+//! )?;
+//! 
+//! // Complex recipe with multiple argument types
+//! let recipe = create_recipe_with_args(
+//!     "AMM.swap",
+//!     vec![
+//!         create_inline_argument(b"token_a"),
+//!         create_inline_argument(b"token_b"),
+//!         create_output_data_reference(1),
+//!         create_cell_dep_data_reference(0),
+//!     ]
+//! )?;
+//! 
+//! // Recipe with dependencies would use create_transaction_recipe_with_deps
+//! # Ok(())
+//! # }
+//! ```
+
 use crate::cell_classifier::CellClassifier;
-/// Transaction recipe implementation based on generated TransactionRecipe
-/// 
-/// This module provides functionality for working with transaction recipes
-/// using the generated TransactionRecipe as the base type.
-/// 
-/// Method paths are calculated using Blake2b-256 hash (first 8 bytes as u64).
-/// 
-/// IMPORTANT: TransactionRecipe must be stored in the output_type field of a WitnessArgs structure.
-/// Direct storage of recipe bytes in witnesses is not supported.
-/// 
-/// # Examples
-/// 
-/// ## Using helper functions for flexible argument construction
-/// 
-/// ```rust,no_run
-/// # use ckb_deterministic::errors::Error;
-/// # fn example() -> Result<(), Error> {
-/// use ckb_deterministic::transaction_recipe::{
-///     create_inline_argument, create_output_data_reference, 
-///     create_input_data_reference, create_cell_dep_data_reference,
-///     create_recipe_with_args
-/// };
-/// 
-/// // Simple recipe with one output data reference
-/// let recipe = create_recipe_with_args(
-///     "Protocol.update",
-///     vec![create_output_data_reference(0)]
-/// )?;
-/// 
-/// // Complex recipe with multiple argument types
-/// let recipe = create_recipe_with_args(
-///     "AMM.swap",
-///     vec![
-///         create_inline_argument(b"token_a"),
-///         create_inline_argument(b"token_b"),
-///         create_output_data_reference(1),
-///         create_cell_dep_data_reference(0),
-///     ]
-/// )?;
-/// 
-/// // Recipe with dependencies would use create_transaction_recipe_with_deps
-/// # Ok(())
-/// # }
-/// ```
 
 use crate::errors::Error;
 use crate::generated::{

@@ -1,5 +1,26 @@
-/// Universal known scripts for CKB
-/// Provides standardized classification for common script types in the CKB ecosystem
+//! Registry of well-known CKB scripts.
+//! 
+//! This module provides a comprehensive registry of commonly used scripts
+//! in the CKB ecosystem, including their code hashes and deployment information
+//! for both mainnet and testnet.
+//! 
+//! # Supported Scripts
+//! 
+//! - **Lock Scripts**: Secp256k1, Multisig, AnyoneCanPay, OmniLock, JoyID, etc.
+//! - **Type Scripts**: xUDT, Spore, NervosDAO, TypeID, etc.
+//! - **Utility Scripts**: AlwaysSuccess (testing), Proxy locks
+//! 
+//! # Usage
+//! 
+//! ```no_run
+//! use ckb_deterministic::known_scripts::{KnownScript, Network, get_script_info};
+//! 
+//! // Get xUDT script information for mainnet
+//! if let Some(info) = get_script_info(KnownScript::XUdt, Network::Mainnet) {
+//!     let code_hash = info.code_hash;
+//!     let cell_deps = info.cell_deps;
+//! }
+//! ```
 
 use crate::cell_classifier::CellClass;
 use crate::errors::Error;
@@ -9,8 +30,10 @@ use alloc::vec;
 use alloc::ffi::CString;
 use ckb_std::high_level::decode_hex;
 
-/// Known script types in the CKB ecosystem
-/// Simplified for contract-side classification
+/// Known script types in the CKB ecosystem.
+/// 
+/// Each variant represents a well-known script with established
+/// deployment addresses and usage patterns.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KnownScript {
     /// Nervos DAO type script
