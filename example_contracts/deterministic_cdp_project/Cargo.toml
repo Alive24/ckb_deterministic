@@ -11,6 +11,11 @@ native-simulator = ["library", "ckb-std/native-simulator"]
 [[bin]]
 name = "deterministic_cdp_project"
 path = "src/main.rs"
+required-features = ["default"]
+
+[lib]
+name = "deterministic_cdp_project"
+path = "src/lib.rs"
 
 [dependencies]
 ckb-std = { version = "0.16.4", default-features = false, features = ["allocator", "ckb-types", "dummy-atomic"] }

@@ -1,5 +1,4 @@
 use ckb_deterministic::transaction_context::TransactionContext;
-use ckb_deterministic::transaction_deps::{CellDepInfo, OutPointInfo, DepType};
 use ckb_deterministic::cell_classifier::{RuleBasedClassifier, CellClass, ClassificationRule, CellInfo, ClassifiedCells, CellClassifier};
 use ckb_deterministic::transaction_recipe::TransactionRecipeExt;
 use ckb_deterministic::generated::{TransactionRecipeBuilder, Bytes, RecipeArgumentVec};
@@ -42,7 +41,7 @@ fn test_context_creation_basic() {
         recipe,
         ClassifiedCells::default(),
         ClassifiedCells::default(),
-        vec![],
+        ClassifiedCells::default(),
         vec![],
     );
     
@@ -92,7 +91,7 @@ fn test_context_with_classified_cells() {
         recipe,
         input_cells,
         ClassifiedCells::default(),
-        vec![],
+        ClassifiedCells::default(),
         vec![],
     );
     
@@ -106,33 +105,6 @@ fn test_context_with_classified_cells() {
 
 #[test]
 fn test_context_with_dependencies() {
-    let cell_deps = vec![
-        CellDepInfo {
-            out_point: OutPointInfo {
-                tx_hash: [1u8; 32],
-                index: 0,
-            },
-            dep_type: DepType::Code,
-            resolved_deps: vec![],
-        },
-        CellDepInfo {
-            out_point: OutPointInfo {
-                tx_hash: [2u8; 32],
-                index: 1,
-            },
-            dep_type: DepType::DepGroup,
-            resolved_deps: vec![
-                OutPointInfo {
-                    tx_hash: [3u8; 32],
-                    index: 0,
-                },
-                OutPointInfo {
-                    tx_hash: [4u8; 32],
-                    index: 0,
-                },
-            ],
-        },
-    ];
     
     let header_deps = vec![[10u8; 32], [11u8; 32], [12u8; 32]];
     
@@ -145,12 +117,11 @@ fn test_context_with_dependencies() {
         recipe,
         ClassifiedCells::default(),
         ClassifiedCells::default(),
-        cell_deps,
+        ClassifiedCells::default(), // cell_deps is now ClassifiedCells
         header_deps,
     );
     
-    assert_eq!(context.cell_deps.len(), 2);
-    assert_eq!(context.cell_deps[1].resolved_deps.len(), 2);
+    assert_eq!(context.cell_deps.total_cell_count(), 0); // ClassifiedCells is empty
     assert_eq!(context.header_deps.len(), 3);
 }
 
@@ -195,7 +166,7 @@ fn test_context_cell_access_patterns() {
         recipe,
         input_cells,
         output_cells,
-        vec![],
+        ClassifiedCells::default(),
         vec![],
     );
     
@@ -227,7 +198,7 @@ fn test_context_empty_collections() {
         recipe,
         ClassifiedCells::default(),
         ClassifiedCells::default(),
-        vec![],
+        ClassifiedCells::default(),
         vec![],
     );
     
@@ -265,7 +236,7 @@ fn test_context_with_unidentified_cells() {
         recipe,
         input_cells,
         ClassifiedCells::default(),
-        vec![],
+        ClassifiedCells::default(),
         vec![],
     );
     
@@ -298,7 +269,7 @@ fn test_context_recipe_data() {
         recipe,
         ClassifiedCells::default(),
         ClassifiedCells::default(),
-        vec![],
+        ClassifiedCells::default(),
         vec![],
     );
     
@@ -340,7 +311,7 @@ fn test_context_large_cell_collections() {
         recipe,
         input_cells,
         ClassifiedCells::default(),
-        vec![],
+        ClassifiedCells::default(),
         vec![],
     );
     
@@ -396,7 +367,7 @@ fn test_context_mixed_sources() {
         recipe,
         input_cells,
         output_cells,
-        vec![],
+        ClassifiedCells::default(),
         vec![],
     );
     

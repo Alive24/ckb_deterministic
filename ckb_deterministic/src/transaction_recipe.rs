@@ -52,14 +52,12 @@ use crate::generated::{
 use crate::transaction_context::TransactionContext;
 use ckb_std::{
     high_level, 
-    high_level::decode_hex,
     ckb_constants::Source,
     ckb_types::{packed::WitnessArgs, prelude::*},
 };
 use ckb_hash::blake2b_256;
 extern crate alloc;
-use alloc::{vec::Vec, string::String, ffi};
-use molecule::prelude::*;
+use alloc::{vec::Vec, string::String};
 use molecule::prelude::Byte;
 use core::{
     option::{Option, Option::*},
@@ -795,6 +793,8 @@ mod tests {
         let witness_hex = "670000001000000010000000100000005300000053000000140000003600000053000000530000001e000000434b426f6f737450726f746f636f6c2e75706461746550726f746f636f6c1d00000008000000150000000c0000000d000000020400000000000000";
         
         // Convert hex to bytes using ckb-std
+        use ckb_std::high_level::decode_hex;
+        use alloc::ffi;
         let hex_cstr = ffi::CString::new(witness_hex).unwrap();
         let witness_bytes = decode_hex(&hex_cstr).unwrap();
         
@@ -809,7 +809,7 @@ mod tests {
                 println!("Arguments count: {}", recipe.arguments().len());
                 
                 // Check method path
-                assert_eq!(recipe.method_path_name().unwrap(), "CKBoostProtocol.update_protocol");
+                assert_eq!(recipe.method_path_name().unwrap(), "CKBoostProtocol.updateProtocol");
                 
                 // Check arguments
                 let args = recipe.arguments();
@@ -887,6 +887,8 @@ mod tests {
     fn test_analyze_recipe_error() {
         // Your witness data successfully parses, let's analyze what might cause RecipeError
         let witness_hex = "670000001000000010000000100000005300000053000000140000003600000053000000530000001e000000434b426f6f737450726f746f636f6c2e75706461746550726f746f636f6c1d00000008000000150000000c0000000d000000020400000000000000";
+        use ckb_std::high_level::decode_hex;
+        use alloc::ffi;
         let hex_cstr = ffi::CString::new(witness_hex).unwrap();
         let witness_bytes = decode_hex(&hex_cstr).unwrap();
         

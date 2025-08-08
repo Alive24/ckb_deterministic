@@ -7,7 +7,6 @@ mod comprehensive_tests {
     use ckb_deterministic::{
         cell_classifier::{CellClass, ClassificationRule, RuleBasedClassifier, CellInfo, CellClassifier, ClassifiedCells, CellCollector},
         transaction_context::TransactionContext,
-        transaction_deps::{CellDepInfo, OutPointInfo, DepType},
         transaction_recipe::TransactionRecipeExt,
         validation::{TransactionValidationRules, CellCountConstraint},
         errors::Error,
@@ -250,15 +249,6 @@ mod comprehensive_tests {
 
     #[test] 
     fn test_transaction_recipe_with_deps() {
-        let _cell_dep = CellDepInfo {
-            out_point: OutPointInfo {
-                tx_hash: [1u8; 32],
-                index: 0,
-            },
-            dep_type: DepType::Code,
-            resolved_deps: vec![],
-        };
-        
         let _recipe_with_deps = TransactionRecipeBuilder::default()
             .method_path(Bytes::from(b"method".to_vec()))
             .arguments(RecipeArgumentVec::new_builder().build())
@@ -296,7 +286,7 @@ mod comprehensive_tests {
             recipe,
             input_cells,
             output_cells,
-            vec![],
+            ClassifiedCells::default(),
             vec![],
         )
     }
@@ -366,7 +356,7 @@ mod comprehensive_tests {
             recipe_with_args,
             ClassifiedCells::default(),
             ClassifiedCells::default(),
-            vec![],
+            ClassifiedCells::default(),
             vec![],
         );
         
@@ -576,15 +566,6 @@ mod comprehensive_tests {
 
     #[test]
     fn test_validation_dependencies() {
-        let cell_dep = CellDepInfo {
-            out_point: OutPointInfo {
-                tx_hash: [1u8; 32],
-                index: 0,
-            },
-            dep_type: DepType::Code,
-            resolved_deps: vec![],
-        };
-        
         let rules = TransactionValidationRules::new(b"test".to_vec());
         // Cell deps validation is done through context
         
@@ -595,8 +576,6 @@ mod comprehensive_tests {
         );
         
         // Add deps
-        context.cell_deps = vec![cell_dep];
-        context.header_deps = vec![[70u8; 32]];
         
         assert!(rules.validate(&context).is_ok());
     }
@@ -785,16 +764,7 @@ mod comprehensive_tests {
                 custom_cells: output_custom,
                 unidentified_cells: vec![],
             },
-            vec![
-                CellDepInfo {
-                    out_point: OutPointInfo {
-                        tx_hash: vault_code_hash,
-                        index: 0,
-                    },
-                    dep_type: DepType::Code,
-                    resolved_deps: vec![],
-                }
-            ],
+            ClassifiedCells::default(), // Cell deps now use ClassifiedCells
             vec![],
         );
         
@@ -962,7 +932,7 @@ mod comprehensive_tests {
             recipe,
             ClassifiedCells::default(),
             ClassifiedCells::default(),
-            vec![],
+            ClassifiedCells::default(),
             vec![],
         );
         

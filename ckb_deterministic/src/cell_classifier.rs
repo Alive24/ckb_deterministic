@@ -227,7 +227,7 @@ pub trait CellClassifier {
     
     /// Check if we should load data for a cell with this type code hash
     /// Returns false for unrecognized types that might be depGroups
-    fn should_load_data_for_type(&self, type_code_hash: &[u8; 32]) -> bool {
+    fn should_load_data_for_type(&self, _type_code_hash: &[u8; 32]) -> bool {
         // Default implementation: don't load data for unknown types
         // Classifiers can override this to specify which types they recognize
         false
@@ -535,7 +535,7 @@ impl<C: CellClassifier> CellCollector<C> {
             loop {
                 // First check if the cell exists by trying to load its lock
                 match load_cell_lock(index, source) {
-                    Ok(lock) => {
+                    Ok(_lock) => {
                         // Load the type script to check if this is a cell we care about
                         let type_script = load_cell_type(index, source)?;
                         
@@ -726,7 +726,7 @@ mod tests {
         };
 
         cells.add_cell(cell, CellClass::known("protocol"));
-        assert_eq!(cells.get_custom("protocol").unwrap().len(), 1);
+        assert_eq!(cells.get_known("protocol").unwrap().len(), 1);
         assert_eq!(cells.total_cell_count(), 1);
         assert!(!cells.has_unidentified_cells());
     }

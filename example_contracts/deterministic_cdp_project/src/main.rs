@@ -98,3 +98,10 @@ pub fn program_entry() -> i8 {
         }
     }
 }
+
+// Panic handler for no_std environment
+#[cfg(not(any(feature = "library", test)))]
+#[panic_handler]
+fn panic_handler(_info: &core::panic::PanicInfo) -> ! {
+    ckb_std::syscalls::exit(-1)
+}

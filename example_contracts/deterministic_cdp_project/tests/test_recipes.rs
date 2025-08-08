@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+    use alloc::vec::Vec;
     use ckb_deterministic::{
         cell_classifier::{CellClass, ClassificationRule, RuleBasedClassifier, CellInfo, CellClassifier, ClassifiedCells},
         transaction_context::TransactionContext,
@@ -102,8 +104,8 @@ mod tests {
 
         // Manually create classified cells
         let mut input_simple_ckb = vec![];
-        let mut input_known = std::collections::BTreeMap::new();
-        let mut input_custom = std::collections::BTreeMap::new();
+        let mut input_known = alloc::collections::BTreeMap::new();
+        let mut input_custom = alloc::collections::BTreeMap::new();
         
         for cell in input_cells {
             match classifier.classify(&cell).unwrap() {
@@ -119,8 +121,8 @@ mod tests {
         }
 
         let mut output_simple_ckb = vec![];
-        let mut output_known = std::collections::BTreeMap::new();
-        let mut output_custom = std::collections::BTreeMap::new();
+        let mut output_known = alloc::collections::BTreeMap::new();
+        let mut output_custom = alloc::collections::BTreeMap::new();
         
         for cell in output_cells {
             match classifier.classify(&cell).unwrap() {
@@ -153,8 +155,8 @@ mod tests {
             recipe,
             input_cells,
             output_cells,
-            vec![],
-            vec![],
+            ClassifiedCells::default(), // cell_deps
+            vec![], // header_deps
         ))
     }
 

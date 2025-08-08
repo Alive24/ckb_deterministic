@@ -107,7 +107,7 @@ fn create_test_context(
         recipe,
         input_cells,
         output_cells,
-        vec![],
+        ClassifiedCells::default(),
         vec![],
     )
 }
@@ -146,7 +146,7 @@ fn test_argument_count_validation() {
         recipe_with_args,
         ClassifiedCells::default(),
         ClassifiedCells::default(),
-        vec![],
+        ClassifiedCells::default(),
         vec![],
     );
     
@@ -300,7 +300,7 @@ fn test_multiple_validation_rules() {
         recipe,
         input_cells,
         output_cells,
-        vec![],
+        ClassifiedCells::default(),
         vec![],
     );
     

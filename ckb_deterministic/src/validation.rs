@@ -2,16 +2,16 @@
 ///
 /// This module provides a framework for defining and enforcing validation rules
 /// for different transaction types based on their method paths.
-use crate::cell_classifier::{CellClassifier, ClassifiedCells};
+use crate::cell_classifier::CellClassifier;
 use crate::errors::Error;
-use crate::known_scripts::{get_script_info, KnownScript, Network};
+use crate::known_scripts::{KnownScript, Network};
 use crate::transaction_context::TransactionContext;
-use crate::transaction_deps::{CellDepInfo, CellDepVecExt, DepType};
+use crate::transaction_deps::DepType;
 use crate::transaction_recipe::TransactionRecipeExt;
 extern crate alloc;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-use alloc::{ffi, format};
+use alloc::format;
 
 /// Cell count constraint for validation
 #[derive(Debug, Clone, Copy)]
@@ -374,28 +374,4 @@ impl<C: CellClassifier> TransactionValidationRules<C> {
 
         Ok(())
     }
-}
-
-/// Helper to convert hex string to bytes using ckb-std
-fn hex_to_bytes(hex: &str) -> Result<[u8; 32], Error> {
-    use ckb_std::high_level::decode_hex;
-
-    let hex = hex.trim_start_matches("0x");
-
-    // Convert to CString for ckb-std decode_hex
-    let hex_cstr = ffi::CString::new(hex).map_err(|_| {
-        Error::HexError
-    })?;
-
-    let decoded = decode_hex(&hex_cstr).map_err(|_| {
-        Error::HexError
-    })?;
-
-    if decoded.len() != 32 {
-        return Err(Error::HexError);
-    }
-
-    let mut result = [0u8; 32];
-    result.copy_from_slice(&decoded);
-    Ok(result)
 }
