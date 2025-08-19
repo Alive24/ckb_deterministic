@@ -33,6 +33,7 @@
 //!     );
 //! ```
 use crate::cell_classifier::CellClassifier;
+use crate::debug_trace;
 use crate::errors::Error;
 use crate::known_scripts::{KnownScript, Network};
 use crate::transaction_context::TransactionContext;
@@ -324,6 +325,7 @@ impl<C: CellClassifier> TransactionValidationRules<C> {
         // Check method path
         let recipe_path = context.recipe.method_path_bytes();
         if recipe_path != self.method_path {
+            debug_trace!("WrongMethodPath: Expected method path {:?}, got {:?}", self.method_path, recipe_path);
             return Err(Error::WrongMethodPath);
         }
 
@@ -332,6 +334,7 @@ impl<C: CellClassifier> TransactionValidationRules<C> {
             Some(expected_args) => {
                 let actual_args = context.recipe.arguments_vec().len();
                 if actual_args != expected_args {
+                    debug_trace!("InvalidArgumentCount: Expected {} arguments, got {}", expected_args, actual_args);
                     return Err(Error::InvalidArgumentCount);
                 }
             }
@@ -370,10 +373,12 @@ impl<C: CellClassifier> TransactionValidationRules<C> {
                 };
 
             if !rule.input_constraint.is_satisfied_by(input_count) {
+                debug_trace!("CellCountViolation: Input count for {} is {}", cell_type_str, input_count);
                 return Err(Error::CellCountViolation);
             }
 
             if !rule.output_constraint.is_satisfied_by(output_count) {
+                debug_trace!("CellCountViolation: Output count for {} is {}", cell_type_str, output_count);
                 return Err(Error::CellCountViolation);
             }
         }
@@ -381,25 +386,30 @@ impl<C: CellClassifier> TransactionValidationRules<C> {
         // Check unidentified cells
         if !self.allow_unidentified {
             if !context.input_cells.unidentified_cells.is_empty() {
+                debug_trace!("UnidentifiedCells: Input cells contain unidentified cells");
                 return Err(Error::UnidentifiedCells);
             }
             if !context.output_cells.unidentified_cells.is_empty() {
+                debug_trace!("UnidentifiedCells: Output cells contain unidentified cells");
                 return Err(Error::UnidentifiedCells);
             }
         }
 
         // Run cell relationship rules
         for cell_relationship_rule in &self.cell_relationship_rules {
+            debug_trace!("Running cell relationship rule: {}", cell_relationship_rule.rule_name);
             (cell_relationship_rule.predicate)(context)?;
         }
 
         // Run business rules
         for business_rule in &self.business_rules {
+            debug_trace!("Running business rule: {}", business_rule.rule_name);
             (business_rule.predicate)(context)?;
         }
 
         // Run additional validation rules
         for additional_rule in &self.additional_rules {
+            debug_trace!("Running additional rule: {}", additional_rule.rule_name);
             (additional_rule.predicate)(context)?;
         }
 
