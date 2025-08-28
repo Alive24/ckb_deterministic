@@ -51,8 +51,6 @@ pub mod cell_classifier;
 pub mod debug_utils;
 /// Error types used throughout the framework
 pub mod errors;
-/// Registry of well-known CKB scripts (xUDT, Spore, etc.)
-pub mod known_scripts;
 /// Auto-generated types from molecule schemas
 pub mod generated;
 /// Transaction recipe parsing and manipulation utilities
@@ -65,6 +63,8 @@ pub mod transaction_deps;
 pub mod validation;
 /// Type ID calculation and validation utilities
 pub mod type_id;
+/// Common utility functions including hex decoding
+pub mod utils;
 
 // Re-export commonly used helper functions from transaction_recipe
 pub use transaction_recipe::{
@@ -79,4 +79,7 @@ pub use transaction_recipe::{
     serialize_transaction_recipe,
     resolve_recipe_argument,
 };
+
+// Re-export commonly used utility functions
+pub use utils::decode_hex;
 

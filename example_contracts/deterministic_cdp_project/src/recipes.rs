@@ -40,7 +40,6 @@
 
 use ckb_deterministic::{
     cell_classifier::RuleBasedClassifier,
-    known_scripts::KnownScript,
     transaction_context::TransactionContext,
     validation::{CellCountConstraint, TransactionValidationRules},
 };
@@ -106,7 +105,7 @@ pub mod open_vault {
                 CellCountConstraint::exactly(1), // One output vault
             )
             .with_known_cell(
-                KnownScript::XUdt,
+                String::from("xudt"),
                 CellCountConstraint::at_least(1), // At least one xUDT input
                 CellCountConstraint::at_least(1), // At least one xUDT output
             )
@@ -244,7 +243,7 @@ pub mod close_vault {
                 CellCountConstraint::exactly(0), // No output vaults
             )
             .with_known_cell(
-                KnownScript::XUdt,
+                String::from("xudt"),
                 CellCountConstraint::at_least(1), // At least one xUDT input (for repaying debt)
                 CellCountConstraint::at_least(1), // At least one xUDT output (returning collateral)
             )
@@ -400,7 +399,7 @@ pub mod adjust_vault {
                 CellCountConstraint::exactly(1), // One output vault
             )
             .with_known_cell(
-                KnownScript::XUdt,
+                String::from("xudt"),
                 CellCountConstraint::any(), // Variable xUDT cells
                 CellCountConstraint::any(), // Variable xUDT cells
             )

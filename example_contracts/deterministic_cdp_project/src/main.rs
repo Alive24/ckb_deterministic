@@ -38,7 +38,6 @@
 #[cfg(any(feature = "library", test))]
 extern crate alloc;
 
-use ckb_deterministic::known_scripts::Network;
 use ckb_deterministic::cell_classifier::CellCollector;
 use ckb_deterministic::transaction_context::TransactionContext;
 use ckb_deterministic::transaction_recipe::TransactionRecipeExt;
@@ -136,7 +135,6 @@ fn program_entry_wrap() -> Result<(), Error> {
         vault_code_hash,
         protocol_code_hash,
         pool_code_hash,
-        Network::Testnet,
     )?;
     
     // Create cell collector and transaction context

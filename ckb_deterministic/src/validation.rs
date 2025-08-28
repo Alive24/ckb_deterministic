@@ -32,10 +32,9 @@
 //!         CellCountConstraint::exactly(1),  // Exactly 1 vault output
 //!     );
 //! ```
-use crate::cell_classifier::CellClassifier;
+use crate::cell_classifier::{CellClassifier};
 use crate::debug_trace;
 use crate::errors::Error;
-use crate::known_scripts::{KnownScript, Network};
 use crate::transaction_context::TransactionContext;
 use crate::transaction_deps::DepType;
 use crate::transaction_recipe::TransactionRecipeExt;
@@ -197,8 +196,6 @@ pub struct TransactionValidationRules<C: CellClassifier> {
     pub business_rules: Vec<ValidationRule<C>>,
     /// Additional rules
     pub additional_rules: Vec<ValidationRule<C>>,
-    /// Network for known script validation
-    pub network: Network,
 }
 
 impl<C: CellClassifier> TransactionValidationRules<C> {
@@ -212,7 +209,6 @@ impl<C: CellClassifier> TransactionValidationRules<C> {
             business_rules: Vec::new(),
             additional_rules: Vec::new(),
             allow_unidentified: false,
-            network: Network::Mainnet,
         }
     }
 
@@ -225,12 +221,12 @@ impl<C: CellClassifier> TransactionValidationRules<C> {
     /// Add a rule for a known cell type
     pub fn with_known_cell(
         mut self,
-        known_script: KnownScript,
+        identifier: String,
         input_constraint: CellCountConstraint,
         output_constraint: CellCountConstraint,
     ) -> Self {
         self.cell_type_count_rules.push(CellTypeCountRule {
-            cell_type: known_script.identifier().to_string(),
+            cell_type: identifier,
             input_constraint,
             output_constraint,
             cell_dep_constraint: CellCountConstraint::any(),
@@ -308,12 +304,6 @@ impl<C: CellClassifier> TransactionValidationRules<C> {
             involved_cell_types,
             predicate,
         });
-        self
-    }
-
-    /// Set the network for known script validation
-    pub fn with_network(mut self, network: Network) -> Self {
-        self.network = network;
         self
     }
 

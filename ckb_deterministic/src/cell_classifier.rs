@@ -28,7 +28,7 @@
 //! ```
 use ckb_std::{
     ckb_constants::Source,
-    ckb_types::{packed::Script, prelude::Entity},
+    ckb_types::{core::ScriptHashType, packed::Script, prelude::Entity},
     high_level::{
         load_cell_data, load_cell_lock, load_cell_lock_hash, load_cell_type, load_cell_type_hash,
     },
@@ -43,7 +43,11 @@ use alloc::{
 };
 use crate::{debug_info, debug_trace};
 
-use crate::known_scripts::KnownScript;
+#[derive(Debug, Clone, PartialEq)]
+pub enum ScriptType {
+    Type,
+    Lock,
+}
 
 /// Complete metadata for a CKB cell.
 /// 
@@ -132,7 +136,10 @@ pub enum ClassificationRule {
     },
     /// Match by known script
     KnownScript {
-        script: KnownScript,
+        identifier: String,
+        code_hash: [u8; 32],
+        hash_type: ScriptHashType,
+        script_type: ScriptType,
         class: CellClass,
     },
     /// Custom predicate function
@@ -189,13 +196,14 @@ impl ClassificationRule {
                             Ok(None)
                         }
                     }
-            ClassificationRule::KnownScript { script, class } => {
+            ClassificationRule::KnownScript { identifier: _, code_hash, hash_type, script_type, class } => {
                 // Check both type script and lock script based on the script type
-                if script.is_type_script() {
+                if script_type == &ScriptType::Type {
                     match &cell.type_script {
                         Some(type_script) => {
-                            let expected_code_hash = script.code_hash()?;
-                            if type_script.code_hash().as_slice() == expected_code_hash {
+                            let type_code_hash = type_script.code_hash();
+                            let type_hash_type = type_script.hash_type();
+                            if code_hash == type_code_hash.as_slice() && type_hash_type == (*hash_type).into() {
                                 Ok(Some(class.clone()))
                             } else {
                                 Ok(None)
@@ -203,9 +211,9 @@ impl ClassificationRule {
                         }
                         None => Ok(None)
                     }
-                } else if script.is_lock_script() {
-                    let expected_code_hash = script.code_hash()?;
-                    if cell.lock.code_hash().as_slice() == expected_code_hash {
+                } else if script_type == &ScriptType::Lock {
+                    let lock_code_hash = cell.lock.code_hash();
+                    if code_hash.as_slice() == lock_code_hash.as_slice() {
                         Ok(Some(class.clone()))
                     } else {
                         Ok(None)
@@ -235,8 +243,8 @@ impl ClassificationRule {
             ClassificationRule::Custom { name, .. } => {
                 format!("Custom({})", name)
             }
-            ClassificationRule::KnownScript { script, .. } => {
-                format!("KnownScript({})", script.identifier())
+            ClassificationRule::KnownScript { identifier, .. } => {
+                format!("KnownScript({})", identifier)
             }
         }
     }
@@ -304,9 +312,12 @@ impl RuleBasedClassifier {
         self.add_rule(ClassificationRule::LockCodeHash { code_hash, class })
     }
 
-    pub fn add_known_script(self, script: KnownScript, class: CellClass) -> Self {
+    pub fn add_known_script(self, identifier: String, code_hash: [u8; 32], hash_type: ScriptHashType, script_type: ScriptType, class: CellClass) -> Self {
         self.add_rule(ClassificationRule::KnownScript {
-            script,
+            identifier,
+            code_hash,
+            hash_type,
+            script_type,
             class,
         })
     }
