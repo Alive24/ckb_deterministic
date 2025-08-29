@@ -222,10 +222,9 @@ macro_rules! debug_trace {
     // Pattern: debug_trace!(message)
     ($msg:literal) => {
         ::ckb_std::debug!(
-            "[TRACE | {}:{} | {}] {}",
+            "[TRACE |{}:{}] {}",
             $crate::relative_file_path!(),
             line!(),
-            module_path!(),
             $msg
         )
     };
@@ -237,10 +236,9 @@ macro_rules! debug_trace {
             use alloc::format;
             let _msg = format!($fmt, $($arg),+);
             ::ckb_std::debug!(
-                "[TRACE | {}:{} | {}] {}",
+                "[TRACE |{}:{}] {}",
                 $crate::relative_file_path!(),
                 line!(),
-                module_path!(),
                 _msg
             );
         }

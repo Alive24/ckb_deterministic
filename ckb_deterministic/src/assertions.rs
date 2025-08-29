@@ -568,25 +568,3 @@ impl<'a> HeadersExpectation<'a> {
         }
     }
 }
-
-/// Helper to convert hex string to bytes using ckb-std
-fn hex_to_bytes(hex: &str) -> Result<[u8; 32], Error> {
-    use ckb_std::high_level::decode_hex;
-    
-    let hex = hex.trim_start_matches("0x");
-    
-    // Convert to CString for ckb-std decode_hex
-    let hex_cstr = ffi::CString::new(hex)
-        .map_err(|_| Error::DataError)?;
-    
-    let decoded = decode_hex(&hex_cstr)
-        .map_err(|_| Error::DataError)?;
-    
-    if decoded.len() != 32 {
-        return Err(Error::DataError);
-    }
-    
-    let mut result = [0u8; 32];
-    result.copy_from_slice(&decoded);
-    Ok(result)
-}

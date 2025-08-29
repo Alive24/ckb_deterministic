@@ -38,8 +38,6 @@ use crate::generated::TransactionRecipe;
 use crate::transaction_recipe::{self as recipe, TransactionRecipeExt};
 use crate::{debug_error, debug_info, debug_trace};
 extern crate alloc;
-#[cfg(feature = "native-simulator")]
-use alloc::format;
 use alloc::vec::Vec;
 use core::{
     option::Option::*,
