@@ -1,5 +1,5 @@
 //! Enhanced debug utilities for CKB smart contracts
-//! 
+//!
 //! This module provides enhanced debug macros that automatically include
 //! context information such as file name, line number, and module path.
 
@@ -40,22 +40,22 @@ macro_rules! relative_file_path {
 }
 
 /// Enhanced debug macro that automatically includes context information
-/// 
+///
 /// # Usage Examples
-/// 
+///
 /// ```ignore
 /// // Simple message
 /// debug_info!("Transaction validation started");
 /// // Output: [INFO | main.rs:42 | my_module] Transaction validation started
-/// 
+///
 /// // With formatting
 /// debug_info!("Processing {} cells", cell_count);
 /// // Output: [INFO | main.rs:43 | my_module] Processing 5 cells
-/// 
+///
 /// // With key-value pairs
 /// debug_info!("method_path" => method_path);
 /// // Output: [INFO | main.rs:44 | my_module] method_path = b"openVault"
-/// 
+///
 /// // With contract name prefix (set via constant)
 /// const CONTRACT_NAME: &str = "CDP_VAULT";
 /// debug_info!(CONTRACT_NAME, "Vault opened successfully");
@@ -74,7 +74,7 @@ macro_rules! debug_info {
             $msg
         )
     };
-    
+
     // Pattern: debug_info!(CONTRACT_NAME, format, args...)
     ($contract:expr, $fmt:literal, $($arg:expr),+ $(,)?) => {
         {
@@ -91,7 +91,7 @@ macro_rules! debug_info {
             );
         }
     };
-    
+
     // Pattern: debug_info!("key" => value)
     ($key:literal => $value:expr) => {
         ::ckb_std::debug!(
@@ -103,7 +103,7 @@ macro_rules! debug_info {
             $value
         )
     };
-    
+
     // Pattern: debug_info!(message)
     ($msg:literal) => {
         ::ckb_std::debug!(
@@ -114,7 +114,7 @@ macro_rules! debug_info {
             $msg
         )
     };
-    
+
     // Pattern: debug_info!(format, args...)
     ($fmt:literal, $($arg:expr),+ $(,)?) => {
         {
@@ -133,16 +133,16 @@ macro_rules! debug_info {
 }
 
 /// Debug macro for error conditions with automatic context
-/// 
+///
 /// # Usage Examples
-/// 
+///
 /// ```ignore
 /// debug_error!("Validation failed");
 /// // Output: [ERROR | main.rs:42 | my_module] Validation failed
-/// 
+///
 /// debug_error!("Validation failed: {:?}", error);
 /// // Output: [ERROR | main.rs:42 | my_module] Validation failed: InvalidSignature
-/// 
+///
 /// const CONTRACT_NAME: &str = "CDP_VAULT";
 /// debug_error!(CONTRACT_NAME, "Critical failure in {}", function_name);
 /// // Output: [ERROR | CDP_VAULT | main.rs:43 | my_module] Critical failure in open_vault
@@ -160,7 +160,7 @@ macro_rules! debug_error {
             $msg
         )
     };
-    
+
     // Pattern: debug_error!(CONTRACT_NAME, format, args...)
     ($contract:expr, $fmt:literal, $($arg:expr),+ $(,)?) => {
         {
@@ -177,7 +177,7 @@ macro_rules! debug_error {
             );
         }
     };
-    
+
     // Pattern: debug_error!(message)
     ($msg:literal) => {
         ::ckb_std::debug!(
@@ -188,7 +188,7 @@ macro_rules! debug_error {
             $msg
         )
     };
-    
+
     // Pattern: debug_error!(format, args...)
     ($fmt:literal, $($arg:expr),+ $(,)?) => {
         {
@@ -207,13 +207,13 @@ macro_rules! debug_error {
 }
 
 /// Debug macro for function entry/exit tracing
-/// 
+///
 /// # Usage Examples
-/// 
+///
 /// ```ignore
 /// debug_trace!("ENTER");
 /// // Output: [TRACE | main.rs:42 | my_module::my_function] ENTER
-/// 
+///
 /// debug_trace!("EXIT => {:?}", result);
 /// // Output: [TRACE | main.rs:43 | my_module::my_function] EXIT => Ok(())
 /// ```
@@ -228,7 +228,7 @@ macro_rules! debug_trace {
             $msg
         )
     };
-    
+
     // Pattern: debug_trace!(format, args...)
     ($fmt:literal, $($arg:expr),+ $(,)?) => {
         {
@@ -246,14 +246,14 @@ macro_rules! debug_trace {
 }
 
 /// Helper macro to conditionally include debug output based on a debug level
-/// 
+///
 /// This allows for more granular control over debug output verbosity
-/// 
+///
 /// # Usage Examples
-/// 
+///
 /// ```ignore
 /// const DEBUG_LEVEL: u8 = 2;
-/// 
+///
 /// debug_if!(DEBUG_LEVEL >= 1, "Basic info");  // Will print
 /// debug_if!(DEBUG_LEVEL >= 3, "Verbose details");  // Won't print
 /// ```

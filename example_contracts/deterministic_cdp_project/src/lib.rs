@@ -1,6 +1,6 @@
 //! # Deterministic CDP Project Library
 //!
-//! This library provides the public interface for the Deterministic CDP (Collateralized Debt Position) 
+//! This library provides the public interface for the Deterministic CDP (Collateralized Debt Position)
 //! smart contract system built on the Nervos CKB blockchain.
 //!
 //! ## Overview
@@ -31,7 +31,7 @@
 //!
 //! ```rust,no_run
 //! use deterministic_cdp_project::recipes::open_vault;
-//! 
+//!
 //! // Get validation rules for opening a vault
 //! let rules = open_vault::get_rules();
 //! // rules can then be used to validate transactions

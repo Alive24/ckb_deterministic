@@ -1,5 +1,5 @@
 //! CDP-specific error types.
-//! 
+//!
 //! This module defines error types specific to the CDP protocol,
 //! mapping errors from the deterministic framework to CDP-specific error codes.
 //! Each error has a unique i8 code for efficient on-chain error reporting.
@@ -7,7 +7,7 @@ use ckb_deterministic::errors::Error as DeterministicError;
 extern crate alloc;
 
 /// Error codes for CDP contract.
-/// 
+///
 /// Error codes are grouped by category:
 /// - 1-9: CKB system errors
 /// - 10-19: Rust/encoding errors
@@ -28,11 +28,11 @@ pub enum Error {
 
     // * Rust Error
     Utf8Error = 10,
-    
+
     // * CDP Contract Errors
     InvalidCodeHash = 20,
     RecipeError = 21,
-    
+
     // * Validation errors from deterministic library
     UnidentifiedCells = 30,
     WrongMethodPath = 31,
@@ -44,7 +44,7 @@ pub enum Error {
     MissingCellDep = 37,
     MissingHeaderDep = 38,
     InvalidDepGroup = 39,
-    
+
     // Unknown error
     Unknown = -1,
 }
@@ -57,26 +57,28 @@ impl From<DeterministicError> for Error {
             DeterministicError::ItemMissing => Error::ItemMissing,
             DeterministicError::LengthNotEnough => Error::LengthNotEnough,
             DeterministicError::Encoding => Error::Encoding,
-            
+
             // Map Rust errors
             DeterministicError::Utf8Error => Error::Utf8Error,
-            
+
             // Map deterministic library errors
             DeterministicError::InvalidCodeHash => Error::InvalidCodeHash,
             DeterministicError::RecipeError => Error::RecipeError,
             DeterministicError::UnidentifiedCells => Error::UnidentifiedCells,
-            
+
             // Map validation errors
             DeterministicError::WrongMethodPath => Error::WrongMethodPath,
             DeterministicError::InvalidArgumentCount => Error::InvalidArgumentCount,
             DeterministicError::CellCountViolation => Error::CellCountViolation,
-            DeterministicError::CellRelationshipRuleViolation => Error::CellRelationshipRuleViolation,
+            DeterministicError::CellRelationshipRuleViolation => {
+                Error::CellRelationshipRuleViolation
+            }
             DeterministicError::BusinessRuleViolation => Error::BusinessRuleViolation,
             DeterministicError::AdditionalRuleValidation => Error::AdditionalRuleValidation,
             DeterministicError::MissingCellDep => Error::MissingCellDep,
             DeterministicError::MissingHeaderDep => Error::MissingHeaderDep,
             DeterministicError::InvalidDepGroup => Error::InvalidDepGroup,
-            
+
             // All other errors
             _ => Error::Unknown,
         }

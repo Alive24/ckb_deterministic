@@ -1,24 +1,25 @@
 //! Jest-like assertion framework for CKB transaction validation
-//! 
+//!
 //! This module provides a fluent API for writing expressive assertions
 //! in custom validators, similar to Jest's expect/assert patterns.
 
 extern crate alloc;
-use alloc::{vec::Vec, ffi};
 use crate::{
+    cell_classifier::ClassifiedCells,
+    debug_trace,
     errors::Error,
     generated::TransactionRecipe,
-    cell_classifier::ClassifiedCells,
-    transaction_recipe::TransactionRecipeExt,
     transaction_deps::{CellDepInfo, DepType},
+    transaction_recipe::TransactionRecipeExt,
 };
+use alloc::{ffi, vec::Vec};
 
 /// Creates an expectation for fluent assertions.
-/// 
+///
 /// # Example
 /// ```no_run
 /// use ckb_deterministic::assertions::expect;
-/// 
+///
 /// expect(42).to_equal(42)?;
 /// expect("hello").not_to_equal("world")?;
 /// expect(100).to_be_greater_than(50)?;
@@ -28,11 +29,11 @@ pub fn expect<T>(actual: T) -> Expectation<T> {
 }
 
 /// Asserts that a condition is true.
-/// 
+///
 /// # Arguments
 /// * `condition` - The boolean condition to check
 /// * `message` - Error message (currently unused but kept for API compatibility)
-/// 
+///
 /// # Returns
 /// * `Ok(())` if the condition is true
 /// * `Err(Error::ExpectationViolation)` if the condition is false
@@ -45,20 +46,24 @@ pub fn assert(condition: bool, _message: &str) -> Result<(), Error> {
 }
 
 /// Asserts that two values are equal.
-/// 
+///
 /// # Type Parameters
 /// * `T` - Type that implements Debug and PartialEq
-/// 
+///
 /// # Arguments
 /// * `actual` - The actual value
 /// * `expected` - The expected value
 /// * `context` - Additional context for the error message (currently unused)
-/// 
+///
 /// # Example
 /// ```no_run
 /// assert_eq(result, 42, "checking calculation result")?;
 /// ```
-pub fn assert_eq<T: core::fmt::Debug + PartialEq>(actual: T, expected: T, _context: &str) -> Result<(), Error> {
+pub fn assert_eq<T: core::fmt::Debug + PartialEq>(
+    actual: T,
+    expected: T,
+    _context: &str,
+) -> Result<(), Error> {
     if actual == expected {
         Ok(())
     } else {
@@ -67,7 +72,7 @@ pub fn assert_eq<T: core::fmt::Debug + PartialEq>(actual: T, expected: T, _conte
 }
 
 /// Wrapper for values being tested with fluent assertion methods.
-/// 
+///
 /// Created by the `expect()` function, this struct provides a chainable
 /// interface for various assertion types.
 pub struct Expectation<T> {
@@ -151,6 +156,7 @@ where
         if self.actual == expected {
             Ok(())
         } else {
+            debug_trace!("Expected {:?} to be equal to {:?}", self.actual, expected);
             Err(Error::ExpectationViolation)
         }
     }
@@ -159,6 +165,11 @@ where
         if self.actual != expected {
             Ok(())
         } else {
+            debug_trace!(
+                "Expected {:?} to not be equal to {:?}",
+                self.actual,
+                expected
+            );
             Err(Error::ExpectationViolation)
         }
     }
@@ -340,7 +351,11 @@ impl<'a> TransactionExpectation<'a> {
         }
     }
 
-    pub fn to_have_argument_with_length(self, index: usize, expected_length: usize) -> Result<(), Error> {
+    pub fn to_have_argument_with_length(
+        self,
+        index: usize,
+        expected_length: usize,
+    ) -> Result<(), Error> {
         let args = self.recipe.arguments_vec();
         match args.get(index) {
             Some(arg) if arg.len() == expected_length => Ok(()),
@@ -377,11 +392,12 @@ impl<'a> CellsExpectation<'a> {
     }
 
     pub fn to_have_known_cells_count(self, cell_type: &str, expected: usize) -> Result<(), Error> {
-        let count = self.cells
+        let count = self
+            .cells
             .get_known(cell_type)
             .map(|cells| cells.len())
             .unwrap_or(0);
-        
+
         if count == expected {
             Ok(())
         } else {
@@ -390,11 +406,12 @@ impl<'a> CellsExpectation<'a> {
     }
 
     pub fn to_have_custom_cells_count(self, cell_type: &str, expected: usize) -> Result<(), Error> {
-        let count = self.cells
+        let count = self
+            .cells
             .get_custom(cell_type)
             .map(|cells| cells.len())
             .unwrap_or(0);
-        
+
         if count == expected {
             Ok(())
         } else {
@@ -435,10 +452,11 @@ pub fn expect_u64_argument(arg: &[u8], _name: &str) -> Result<u64, Error> {
     if arg.len() != 8 {
         return Err(Error::InvalidArgumentCount);
     }
-    
+
     u64::from_le_bytes(
-        arg[..8].try_into()
-            .map_err(|_| Error::InvalidArgumentCount)?
+        arg[..8]
+            .try_into()
+            .map_err(|_| Error::InvalidArgumentCount)?,
     )
     .to_result()
 }
@@ -447,10 +465,11 @@ pub fn expect_u128_argument(arg: &[u8], _name: &str) -> Result<u128, Error> {
     if arg.len() != 16 {
         return Err(Error::InvalidArgumentCount);
     }
-    
+
     u128::from_le_bytes(
-        arg[..16].try_into()
-            .map_err(|_| Error::InvalidArgumentCount)?
+        arg[..16]
+            .try_into()
+            .map_err(|_| Error::InvalidArgumentCount)?,
     )
     .to_result()
 }
@@ -472,10 +491,7 @@ impl<T> ToResult for T {
 #[macro_export]
 macro_rules! validation_block {
     ($name:expr, $block:block) => {{
-        (|| -> Result<(), Error> {
-            $block
-        })()
-        .map_err(|_e| Error::ExpectationViolation)
+        (|| -> Result<(), Error> { $block })().map_err(|_e| Error::ExpectationViolation)
     }};
 }
 
@@ -508,32 +524,33 @@ pub struct DepsExpectation<'a> {
 impl<'a> DepsExpectation<'a> {
     /// Assert that a specific cell dep exists
     pub fn to_have_cell_dep(self, tx_hash: &[u8; 32], index: u32) -> Result<(), Error> {
-        let found = self.deps.iter().any(|dep| {
-            &dep.out_point.tx_hash == tx_hash && dep.out_point.index == index
-        });
-        
+        let found = self
+            .deps
+            .iter()
+            .any(|dep| &dep.out_point.tx_hash == tx_hash && dep.out_point.index == index);
+
         if found {
             Ok(())
         } else {
             Err(Error::MissingCellDep)
         }
     }
-    
+
     /// Assert that a specific dep group exists
     pub fn to_have_dep_group(self, tx_hash: &[u8; 32], index: u32) -> Result<(), Error> {
         let found = self.deps.iter().any(|dep| {
-            &dep.out_point.tx_hash == tx_hash && 
-            dep.out_point.index == index &&
-            dep.dep_type == DepType::DepGroup
+            &dep.out_point.tx_hash == tx_hash
+                && dep.out_point.index == index
+                && dep.dep_type == DepType::DepGroup
         });
-        
+
         if found {
             Ok(())
         } else {
             Err(Error::InvalidDepGroup)
         }
     }
-    
+
     /// Assert that the number of deps matches
     pub fn to_have_count(self, expected: usize) -> Result<(), Error> {
         if self.deps.len() == expected {
@@ -558,7 +575,7 @@ impl<'a> HeadersExpectation<'a> {
             Err(Error::MissingHeaderDep)
         }
     }
-    
+
     /// Assert that the number of headers matches
     pub fn to_have_count(self, expected: usize) -> Result<(), Error> {
         if self.headers.len() == expected {

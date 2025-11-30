@@ -4,18 +4,18 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 /// Decodes a hex string to bytes, handling both with and without "0x" prefix
-/// 
+///
 /// # Arguments
 /// * `hex_str` - A hex string that may or may not start with "0x"
-/// 
+///
 /// # Returns
 /// * `Ok(Vec<u8>)` - The decoded bytes
 /// * `Err(())` - If the string contains invalid hex characters
-/// 
+///
 /// # Examples
 /// ```
 /// use ckb_deterministic::utils::decode_hex;
-/// 
+///
 /// assert_eq!(decode_hex("0x1234").unwrap(), vec![0x12, 0x34]);
 /// assert_eq!(decode_hex("1234").unwrap(), vec![0x12, 0x34]);
 /// assert_eq!(decode_hex("0xdeadbeef").unwrap(), vec![0xde, 0xad, 0xbe, 0xef]);
@@ -39,7 +39,7 @@ pub fn decode_hex(hex_str: &str) -> Result<Vec<u8>, ()> {
     }
 
     let mut result = Vec::with_capacity(hex_str.len() / 2);
-    
+
     let bytes = hex_str.as_bytes();
     let mut i = 0;
     while i < bytes.len() {
@@ -70,7 +70,10 @@ mod tests {
     fn test_decode_hex_with_prefix() {
         assert_eq!(decode_hex("0x00").unwrap(), vec![0x00]);
         assert_eq!(decode_hex("0x1234").unwrap(), vec![0x12, 0x34]);
-        assert_eq!(decode_hex("0xdeadbeef").unwrap(), vec![0xde, 0xad, 0xbe, 0xef]);
+        assert_eq!(
+            decode_hex("0xdeadbeef").unwrap(),
+            vec![0xde, 0xad, 0xbe, 0xef]
+        );
         assert_eq!(decode_hex("0X1234").unwrap(), vec![0x12, 0x34]);
     }
 
@@ -78,7 +81,10 @@ mod tests {
     fn test_decode_hex_without_prefix() {
         assert_eq!(decode_hex("00").unwrap(), vec![0x00]);
         assert_eq!(decode_hex("1234").unwrap(), vec![0x12, 0x34]);
-        assert_eq!(decode_hex("deadbeef").unwrap(), vec![0xde, 0xad, 0xbe, 0xef]);
+        assert_eq!(
+            decode_hex("deadbeef").unwrap(),
+            vec![0xde, 0xad, 0xbe, 0xef]
+        );
     }
 
     #[test]

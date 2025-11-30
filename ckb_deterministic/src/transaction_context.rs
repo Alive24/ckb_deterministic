@@ -1,32 +1,32 @@
 //! Transaction context management for validation workflows.
-//! 
+//!
 //! This module provides a unified context for transaction validation, combining
 //! transaction recipes, classified cells, and dependency information into a single
 //! structure that can be passed to validators.
-//! 
+//!
 //! # Key Components
-//! 
+//!
 //! - `TransactionContext`: Central context containing all transaction data
 //! - `TransactionContextBuilder`: Fluent builder for context configuration
 //! - `TransactionSummary`: Statistics and metadata about the transaction
 //! - Integration with cell classification and recipe parsing
-//! 
+//!
 //! # Example
-//! 
+//!
 //! ```no_run
 //! use ckb_deterministic::{
 //!     transaction_context::TransactionContext,
 //!     cell_classifier::{RuleBasedClassifier, CellClass, CellCollector},
 //! };
-//! 
+//!
 //! // Create classifier and collector
 //! let classifier = RuleBasedClassifier::new("MyContract")
 //!     .add_type_hash([10u8; 32], CellClass::known("xudt"));
 //! let collector = CellCollector::new(classifier);
-//! 
+//!
 //! // Create transaction context
 //! let context = TransactionContext::new(collector)?;
-//! 
+//!
 //! // Access classified cells
 //! let input_xudt = context.input_cells.get_known("xudt");
 //! let output_vaults = context.output_cells.get_custom("vault");
@@ -45,12 +45,12 @@ use core::{
 };
 
 /// Complete transaction context for validation workflows.
-/// 
+///
 /// Contains all necessary information about a transaction including:
 /// - Parsed transaction recipe from witness
 /// - Classified input/output cells
 /// - Cell dependencies and header dependencies
-/// 
+///
 /// The generic parameter `C` allows different cell classification strategies.
 pub struct TransactionContext<C: CellClassifier> {
     pub recipe: TransactionRecipe,
@@ -63,14 +63,14 @@ pub struct TransactionContext<C: CellClassifier> {
 
 impl<C: CellClassifier> TransactionContext<C> {
     /// Create a transaction context by parsing recipe and collecting cells.
-    /// 
+    ///
     /// This automatically:
     /// 1. Parses the transaction recipe from witness
     /// 2. Collects and classifies all cells (inputs, outputs, deps)
     /// 3. Extracts header dependencies
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns `Error::RecipeError` if no recipe is found in witness.
     /// Returns `Error::UnidentifiedCells` if strict mode is enabled and unidentified cells are found.
     pub fn new(collector: CellCollector<C>) -> Result<Self, Error> {
@@ -138,7 +138,7 @@ impl<C: CellClassifier> TransactionContext<C> {
     }
 
     /// Create a transaction context from pre-collected parts.
-    /// 
+    ///
     /// Useful for testing or when cells have already been collected and classified.
     pub fn from_parts(
         recipe: TransactionRecipe,
@@ -158,11 +158,11 @@ impl<C: CellClassifier> TransactionContext<C> {
     }
 
     /// Validate that the transaction context is internally consistent.
-    /// 
+    ///
     /// Checks for:
     /// - Presence of unidentified cells (considered an error in strict mode)
     /// - Basic structural validity
-    /// 
+    ///
     /// Note: This performs structural validation only. Business logic validation
     /// should be done using `TransactionValidationRules`.
     pub fn validate(&self) -> Result<(), Error> {
@@ -177,7 +177,7 @@ impl<C: CellClassifier> TransactionContext<C> {
     }
 
     /// Get summary statistics about the transaction.
-    /// 
+    ///
     /// Useful for debugging and logging transaction details.
     pub fn summary(&self) -> TransactionSummary {
         TransactionSummary {
@@ -197,7 +197,7 @@ impl<C: CellClassifier> TransactionContext<C> {
 }
 
 /// Summary statistics for a transaction context.
-/// 
+///
 /// Provides counts of different cell types and dependencies,
 /// useful for debugging and monitoring transaction patterns.
 #[derive(Debug)]
@@ -216,7 +216,7 @@ pub struct TransactionSummary {
 }
 
 /// Builder for creating transaction contexts with custom configuration.
-/// 
+///
 /// Allows fluent configuration of context creation parameters.
 pub struct TransactionContextBuilder<C: CellClassifier> {
     collector: CellCollector<C>,
@@ -241,7 +241,7 @@ impl<C: CellClassifier> TransactionContextBuilder<C> {
 }
 
 /// Convenience function to create a transaction context.
-/// 
+///
 /// Equivalent to `TransactionContext::new(collector)`.
 pub fn create_transaction_context<C: CellClassifier>(
     collector: CellCollector<C>,
@@ -250,7 +250,7 @@ pub fn create_transaction_context<C: CellClassifier>(
 }
 
 /// Convenience function to create a transaction context builder.
-/// 
+///
 /// Equivalent to `TransactionContextBuilder::new(collector)`.
 pub fn transaction_context_builder<C: CellClassifier>(
     collector: CellCollector<C>,

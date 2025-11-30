@@ -1,10 +1,10 @@
 //! Type ID implementation for CKB smart contracts
-//! 
+//!
 //! This module provides functionality for working with Type ID, a mechanism in CKB
 //! that allows creating unique cell types with guaranteed uniqueness.
 //!
 //! # Type ID Overview
-//! 
+//!
 //! Type ID is a pattern in CKB that ensures a cell type can only be created once
 //! by binding it to a specific transaction input and output position. This is useful
 //! for creating singleton cells or unique tokens.
@@ -38,7 +38,7 @@
 extern crate alloc;
 
 use crate::errors::Error;
-use crate::{debug_info, debug_error};
+use crate::{debug_error, debug_info};
 use alloc::vec::Vec;
 use blake2b_ref::Blake2bBuilder;
 use ckb_std::{
@@ -108,7 +108,7 @@ fn locate_first_type_id_output_index() -> Result<usize, Error> {
 ///
 /// ```no_run
 /// use ckb_deterministic::type_id::calculate_type_id;
-/// 
+///
 /// let input_data = vec![/* serialized input cell */];
 /// let output_index = 0;
 /// let type_id = calculate_type_id(&input_data, output_index);
@@ -146,7 +146,7 @@ pub fn calculate_type_id(input: &[u8], output_index: usize) -> [u8; 32] {
 /// # use ckb_deterministic::errors::Error;
 /// # fn example() -> Result<(), Error> {
 /// use ckb_deterministic::type_id::validate_type_id;
-/// 
+///
 /// let type_id = [0u8; 32]; // Your Type ID
 /// validate_type_id(type_id)?;
 /// # Ok(())
@@ -199,7 +199,7 @@ pub fn validate_type_id(type_id: [u8; 32]) -> Result<(), Error> {
 /// # use ckb_deterministic::errors::Error;
 /// # fn example() -> Result<(), Error> {
 /// use ckb_deterministic::type_id::load_type_id_from_script_args;
-/// 
+///
 /// // Load Type ID from the beginning of script args
 /// let type_id = load_type_id_from_script_args(0)?;
 /// # Ok(())
@@ -234,7 +234,7 @@ pub fn load_type_id_from_script_args(offset: usize) -> Result<[u8; 32], Error> {
 /// # use ckb_deterministic::errors::Error;
 /// # fn example() -> Result<(), Error> {
 /// use ckb_deterministic::type_id::check_type_id_from_script_args;
-/// 
+///
 /// // In a smart contract's main function:
 /// check_type_id_from_script_args()?;
 /// # Ok(())
@@ -256,14 +256,14 @@ mod tests {
         let input = b"test_input";
         let output_index = 0;
         let type_id = calculate_type_id(input, output_index);
-        
+
         // Type ID should be 32 bytes
         assert_eq!(type_id.len(), 32);
-        
+
         // Different inputs should produce different Type IDs
         let type_id2 = calculate_type_id(b"different_input", output_index);
         assert_ne!(type_id, type_id2);
-        
+
         // Different output indices should produce different Type IDs
         let type_id3 = calculate_type_id(input, 1);
         assert_ne!(type_id, type_id3);

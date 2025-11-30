@@ -1,24 +1,24 @@
 //! Declarative transaction validation framework.
-//! 
+//!
 //! This module provides a flexible framework for defining and enforcing validation rules
 //! for CKB transactions based on their method paths and cell types.
-//! 
+//!
 //! # Key Components
-//! 
+//!
 //! - `TransactionValidationRules`: Main rule container and validator
 //! - `CellCountConstraint`: Flexible constraints for cell counts
 //! - `CellCountRule`: Rules for specific cell types
 //! - Business rule functions for custom validation logic
 //! - Dependency validation for cell deps and header deps
-//! 
+//!
 //! # Example
-//! 
+//!
 //! ```no_run
 //! use ckb_deterministic::validation::{
 //!     TransactionValidationRules,
 //!     CellCountConstraint,
 //! };
-//! 
+//!
 //! let rules = TransactionValidationRules::new(b"Protocol.update".to_vec())
 //!     .with_arguments(2)  // Require exactly 2 arguments
 //!     .with_known_cell(
@@ -32,19 +32,19 @@
 //!         CellCountConstraint::exactly(1),  // Exactly 1 vault output
 //!     );
 //! ```
-use crate::cell_classifier::{CellClassifier};
+use crate::cell_classifier::CellClassifier;
 use crate::debug_trace;
 use crate::errors::Error;
 use crate::transaction_context::TransactionContext;
 use crate::transaction_deps::DepType;
 use crate::transaction_recipe::TransactionRecipeExt;
 extern crate alloc;
+use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-use alloc::format;
 
 /// Cell count constraint for validation.
-/// 
+///
 /// Provides flexible ways to specify how many cells of a certain type
 /// are allowed in inputs or outputs.
 #[derive(Debug, Clone, Copy)]
@@ -308,14 +308,15 @@ impl<C: CellClassifier> TransactionValidationRules<C> {
     }
 
     /// Validate a transaction with dependencies against these rules
-    pub fn validate(
-        &self,
-        context: &TransactionContext<C>,
-    ) -> Result<(), Error> {
+    pub fn validate(&self, context: &TransactionContext<C>) -> Result<(), Error> {
         // Check method path
         let recipe_path = context.recipe.method_path_bytes();
         if recipe_path != self.method_path {
-            debug_trace!("WrongMethodPath: Expected method path {:?}, got {:?}", self.method_path, recipe_path);
+            debug_trace!(
+                "WrongMethodPath: Expected method path {:?}, got {:?}",
+                self.method_path,
+                recipe_path
+            );
             return Err(Error::WrongMethodPath);
         }
 
@@ -324,7 +325,11 @@ impl<C: CellClassifier> TransactionValidationRules<C> {
             Some(expected_args) => {
                 let actual_args = context.recipe.arguments_vec().len();
                 if actual_args != expected_args {
-                    debug_trace!("InvalidArgumentCount: Expected {} arguments, got {}", expected_args, actual_args);
+                    debug_trace!(
+                        "InvalidArgumentCount: Expected {} arguments, got {}",
+                        expected_args,
+                        actual_args
+                    );
                     return Err(Error::InvalidArgumentCount);
                 }
             }
@@ -363,12 +368,20 @@ impl<C: CellClassifier> TransactionValidationRules<C> {
                 };
 
             if !rule.input_constraint.is_satisfied_by(input_count) {
-                debug_trace!("CellCountViolation: Input count for {} is {}", cell_type_str, input_count);
+                debug_trace!(
+                    "CellCountViolation: Input count for {} is {}",
+                    cell_type_str,
+                    input_count
+                );
                 return Err(Error::CellCountViolation);
             }
 
             if !rule.output_constraint.is_satisfied_by(output_count) {
-                debug_trace!("CellCountViolation: Output count for {} is {}", cell_type_str, output_count);
+                debug_trace!(
+                    "CellCountViolation: Output count for {} is {}",
+                    cell_type_str,
+                    output_count
+                );
                 return Err(Error::CellCountViolation);
             }
         }
@@ -387,7 +400,10 @@ impl<C: CellClassifier> TransactionValidationRules<C> {
 
         // Run cell relationship rules
         for cell_relationship_rule in &self.cell_relationship_rules {
-            debug_trace!("Running cell relationship rule: {}", cell_relationship_rule.rule_name);
+            debug_trace!(
+                "Running cell relationship rule: {}",
+                cell_relationship_rule.rule_name
+            );
             (cell_relationship_rule.predicate)(context)?;
         }
 

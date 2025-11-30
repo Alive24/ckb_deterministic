@@ -3,25 +3,25 @@
 //! This module provides a flexible, project-agnostic framework for classifying and collecting
 //! cells in CKB transactions. It supports multiple classification strategies through the
 //! `CellClassifier` trait and includes a rule-based implementation for common use cases.
-//! 
+//!
 //! # Key Components
-//! 
+//!
 //! - `CellInfo`: Complete metadata for a cell including lock, type, and data
 //! - `CellClass`: Classification categories (SimpleCKB, Known, Custom, Unidentified)
 //! - `CellClassifier`: Trait for implementing classification logic
 //! - `RuleBasedClassifier`: Configurable classifier using rules
 //! - `CellCollector`: Utility for collecting and classifying cells from transactions
-//! 
+//!
 //! # Example
-//! 
+//!
 //! ```no_run
 //! use ckb_deterministic::cell_classifier::{RuleBasedClassifier, CellClass, CellCollector};
-//! 
+//!
 //! // Create a classifier with rules for your cell types
 //! let classifier = RuleBasedClassifier::new("MyProject")
 //!     .add_type_hash([10u8; 32], CellClass::known("xudt"))
 //!     .add_type_hash([20u8; 32], CellClass::custom("vault"));
-//! 
+//!
 //! // Collect cells from the transaction
 //! let collector = CellCollector::new(classifier);
 //! let (inputs, outputs, deps) = collector.collect_cells()?;
@@ -34,14 +34,8 @@ use ckb_std::{
     },
 };
 extern crate alloc;
-use alloc::{
-    boxed::Box,
-    collections::BTreeMap,
-    format,
-    string::String,
-    vec::Vec,
-};
 use crate::{debug_info, debug_trace};
+use alloc::{boxed::Box, collections::BTreeMap, format, string::String, vec::Vec};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ScriptType {
@@ -50,7 +44,7 @@ pub enum ScriptType {
 }
 
 /// Complete metadata for a CKB cell.
-/// 
+///
 /// Contains all information needed for cell classification and validation,
 /// including script hashes for efficient comparison.
 #[derive(Debug, Clone)]
@@ -65,7 +59,7 @@ pub struct CellInfo {
 }
 
 /// Classification categories for cells.
-/// 
+///
 /// Cells can be categorized into predefined types for easier handling
 /// in transaction validation logic.
 #[derive(Debug, Clone, PartialEq)]
@@ -115,20 +109,14 @@ impl CellClass {
 /// Classification rule for cells
 pub enum ClassificationRule {
     /// Match by exact type hash
-    TypeHash {
-        hash: [u8; 32],
-        class: CellClass,
-    },
+    TypeHash { hash: [u8; 32], class: CellClass },
     /// Match by type code hash
     TypeCodeHash {
         code_hash: [u8; 32],
         class: CellClass,
     },
     /// Match by exact lock hash
-    LockHash {
-        hash: [u8; 32],
-        class: CellClass,
-    },
+    LockHash { hash: [u8; 32], class: CellClass },
     /// Match by lock code hash
     LockCodeHash {
         code_hash: [u8; 32],
@@ -155,61 +143,67 @@ impl ClassificationRule {
     pub fn matches(&self, cell: &CellInfo) -> Result<Option<CellClass>, crate::errors::Error> {
         match self {
             ClassificationRule::TypeHash { hash, class } => {
-                        if cell.type_hash == Some(*hash) {
-                            Ok(Some(class.clone()))
-                        } else {
-                            Ok(None)
-                        }
+                if cell.type_hash == Some(*hash) {
+                    Ok(Some(class.clone()))
+                } else {
+                    Ok(None)
+                }
+            }
+            ClassificationRule::TypeCodeHash { code_hash, class } => match &cell.type_script {
+                Some(type_script) => {
+                    if type_script.code_hash().as_slice() == code_hash {
+                        Ok(Some(class.clone()))
+                    } else {
+                        Ok(None)
                     }
-            ClassificationRule::TypeCodeHash { code_hash, class } => {
-                        match &cell.type_script {
-                            Some(type_script) => {
-                                if type_script.code_hash().as_slice() == code_hash {
-                                    Ok(Some(class.clone()))
-                                } else {
-                                    Ok(None)
-                                }
-                            }
-                            None => Ok(None)
-                        }
-                    }
+                }
+                None => Ok(None),
+            },
             ClassificationRule::LockHash { hash, class } => {
-                        if cell.lock_hash == *hash {
-                            Ok(Some(class.clone()))
-                        } else {
-                            Ok(None)
-                        }
-                    }
+                if cell.lock_hash == *hash {
+                    Ok(Some(class.clone()))
+                } else {
+                    Ok(None)
+                }
+            }
             ClassificationRule::LockCodeHash { code_hash, class } => {
-                        if cell.lock.code_hash().as_slice() == code_hash {
-                            Ok(Some(class.clone()))
-                        } else {
-                            Ok(None)
-                        }
-                    }
+                if cell.lock.code_hash().as_slice() == code_hash {
+                    Ok(Some(class.clone()))
+                } else {
+                    Ok(None)
+                }
+            }
             ClassificationRule::Custom {
-                        predicate, class, ..
-                    } => {
-                        if predicate(cell) {
-                            Ok(Some(class.clone()))
-                        } else {
-                            Ok(None)
-                        }
-                    }
-            ClassificationRule::KnownScript { identifier: _, code_hash, hash_type, script_type, class } => {
+                predicate, class, ..
+            } => {
+                if predicate(cell) {
+                    Ok(Some(class.clone()))
+                } else {
+                    Ok(None)
+                }
+            }
+            ClassificationRule::KnownScript {
+                identifier: _,
+                code_hash,
+                hash_type,
+                script_type,
+                class,
+            } => {
                 // Check both type script and lock script based on the script type
                 if script_type == &ScriptType::Type {
                     match &cell.type_script {
                         Some(type_script) => {
                             let type_code_hash = type_script.code_hash();
                             let type_hash_type = type_script.hash_type();
-                            if code_hash == type_code_hash.as_slice() && type_hash_type == (*hash_type).into() {
+                            if code_hash == type_code_hash.as_slice()
+                                && type_hash_type == (*hash_type).into()
+                            {
                                 Ok(Some(class.clone()))
                             } else {
                                 Ok(None)
                             }
                         }
-                        None => Ok(None)
+                        None => Ok(None),
                     }
                 } else if script_type == &ScriptType::Lock {
                     let lock_code_hash = cell.lock.code_hash();
@@ -262,7 +256,7 @@ pub trait CellClassifier {
     fn priority(&self) -> u8 {
         100
     }
-    
+
     /// Check if we should load data for a cell with this type code hash
     /// Returns false for unrecognized types that might be depGroups
     fn should_load_data_for_type(&self, _type_code_hash: &[u8; 32]) -> bool {
@@ -312,7 +306,14 @@ impl RuleBasedClassifier {
         self.add_rule(ClassificationRule::LockCodeHash { code_hash, class })
     }
 
-    pub fn add_known_script(self, identifier: String, code_hash: [u8; 32], hash_type: ScriptHashType, script_type: ScriptType, class: CellClass) -> Self {
+    pub fn add_known_script(
+        self,
+        identifier: String,
+        code_hash: [u8; 32],
+        hash_type: ScriptHashType,
+        script_type: ScriptType,
+        class: CellClass,
+    ) -> Self {
         self.add_rule(ClassificationRule::KnownScript {
             identifier,
             code_hash,
@@ -335,7 +336,6 @@ impl RuleBasedClassifier {
             name: name.into(),
         })
     }
-
 }
 
 impl CellClassifier for RuleBasedClassifier {
@@ -344,7 +344,7 @@ impl CellClassifier for RuleBasedClassifier {
         if cell.type_script.is_none() {
             return Ok(CellClass::SimpleCKB);
         }
-        
+
         // Evaluate rules in order until we find a match
         for rule in &self.rules {
             match rule.matches(cell)? {
@@ -358,7 +358,7 @@ impl CellClassifier for RuleBasedClassifier {
     fn name(&self) -> &str {
         &self.name
     }
-    
+
     fn should_load_data_for_type(&self, type_code_hash: &[u8; 32]) -> bool {
         // Check if any of our rules recognize this type code hash
         for rule in &self.rules {
@@ -534,8 +534,6 @@ impl CellClassifier for MultiClassifier {
     }
 }
 
-
-
 /// Main cell collector that orchestrates the classification process
 pub struct CellCollector<C: CellClassifier> {
     classifier: C,
@@ -579,7 +577,7 @@ impl<C: CellClassifier> CellCollector<C> {
                     Ok(_lock) => {
                         // Load the type script to check if this is a cell we care about
                         let type_script = load_cell_type(index, source)?;
-                        
+
                         // Check if this cell has a type script and if we recognize it
                         let should_load_data = match type_script {
                             Some(ref ts) => {
@@ -598,7 +596,7 @@ impl<C: CellClassifier> CellCollector<C> {
                                 false
                             }
                         };
-                        
+
                         let data = if should_load_data {
                             // Try to load data, but if it fails (shouldn't happen for known types),
                             // use empty data
@@ -608,10 +606,13 @@ impl<C: CellClassifier> CellCollector<C> {
                             })
                         } else {
                             // Don't load data for unrecognized types or depGroups
-                            debug_info!("Skipping data load for CellDep {} (unrecognized or depGroup)", index);
+                            debug_info!(
+                                "Skipping data load for CellDep {} (unrecognized or depGroup)",
+                                index
+                            );
                             Vec::new()
                         };
-                        
+
                         match self.load_cell_info(source, index, data) {
                             Ok(cell_info) => {
                                 let classification = self.classifier.classify(&cell_info)?;
@@ -619,7 +620,11 @@ impl<C: CellClassifier> CellCollector<C> {
                                 classified.add_cell(cell_info, classification);
                             }
                             Err(e) => {
-                                debug_info!("Failed to load cell info for CellDep {}: {:?}", index, e);
+                                debug_info!(
+                                    "Failed to load cell info for CellDep {}: {:?}",
+                                    index,
+                                    e
+                                );
                                 // Skip this cell and continue
                             }
                         }
@@ -695,7 +700,6 @@ impl<C: CellClassifier> CellCollector<C> {
         })
     }
 }
-
 
 #[cfg(test)]
 mod tests {
